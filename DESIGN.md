@@ -30,6 +30,8 @@ At intervals of `PING_INTERVAL`, each `node #i` sends a dummy TCP datagram to `n
 
 If no response are received, `node #(i+1)` is considered unavailable, and so `discard_node(node_ip)` is issued to kick it off the network.
 
+
+
 1. If a function `check_health() string` is provided as a callback to the initialization of the network, this function is run, and a string (most probably this should be a SHA256 or CRC-20 of the state synced over the network) is returned.
 
 2. `node #i`then requests from  `node #(i+1)` the result of its `check_health() string`.
@@ -47,8 +49,10 @@ In its most simple form, a broadcast message can be sent to `#.#.#.255` using UD
 A quite compelling alternative would be to use a list of the IP addresses of the nodes, and emulate a broadcast by sending a TCP datagram to each and every node on the network. If a node does not respond, we first try to retransmit the datagram. If the node is still unavailable, then we simply `discard_node(node_ip)` - `node_ip` being the IP of the malfunctioning node. This would be the preferred implementation, had it not been for the fact that the order in which the nodes receive messages makes the health check unusable. Also, it is not scalable if there are lots of nodes connected to the network.
 
 Instead, we have taken advantage of the ring topology of the network.
+1. When `node #i` wants to broadcast a message, it starts by sending it to `node #(i + 1)`
 
 
+### Health check
 
 ### Peer-to-peer messages
 
@@ -62,12 +66,40 @@ Instead, we have taken advantage of the ring topology of the network.
 ### Interface
 
 #### Network
+- `network.init(bcast_ack_cb, ping_failed_cb)`
+
+    There are two processes responsible in joining a network:
+
+    1. The TAIL does at all times listen for `JOIN` messages on `#.#.#.255`. When such message is received, the node which sent the message is added as a new TAIL, and the previous TAIL is connected to the new TAIL instead of its HEAD. Now the ring has expanded.
+
+        **Before:**
+        ```
+        (TAIL -> ) HEAD -> #2 -> #3 -> (...) -> #(n-1) -> TAIL ( -> HEAD)
+        ```
+
+        **After:**
+        ```
+        (TAIL -> ) HEAD -> #2 -> #3 -> (...) -> #(n-1) -> #n -> TAIL ( -> HEAD)
+        ```
+
+    2. A node which wants to join the network sends at an interval `JOIN_MSG_INTERVAL` a `JOIN` message on `#.#.#.255`. At the same time it should act as a TAIL listening for other `JOIN` messages.
+
+        This solves the problem of creating the network initially when no network exists. Since `JOIN` messages are not sent continuously, there will be a race condition where one of two nodes will send the `JOIN` message first. The node which sends this message will become HEAD, whereas the node which receives the message becomes TAIL. The `JOIN` message should be done in a full handshake such that a node cannot be TAIL in two networks. Also, a node should node should not start to listen for `JOIN` messages BEFORE it has tried to join a network.
+- `network.broadcast(message)`
+
+    This function uses `network.send_to(ip_of_next_node, message)` with a message marked specifically as `BROADCAST` to start transmitting a broadcast message. A message is broadcasted by being sent around one iteration of the circle in the _direction_ of `HEAD -> TAIL`. See processes->broadcast for more info.
+
+- `network.send_to(node_ip, message)`
+
+
+
+
 ```golang
 network.init(bcast_ack_cb, ping_failed_cb)
 network.broadcast(message)
-network.send_to(ip, message)
+network.send_to(node_ip, message)
 network.get_peers()
-network.peer_update()
+network.poll_peer_update()
 network.receive(buffer)
 ```
 #### State
@@ -116,13 +148,6 @@ state.set_direction(node_ip, direction)
 state.get_lights(floor_number)
 ```
 
-#### Event scheduler
-```
-es.add_call(call_type, call)
-es.set_floor(floor)
-es.set_direction(direction)
-```
-
 #### Hardware driver
 ```
     elevio.Init(addr string, numFloors int)
@@ -135,4 +160,21 @@ es.set_direction(direction)
     elevio.PollFloorSensor(receiver chan<- int)
     elevio.PollStopButton(receiver chan<- bool)
     elevio.PollObstructionSwitch(receiver chan<- bool)
+```
+
+#### Order distributor
+```
+od.init()
+od.add_call(call_type, call)
+od.set_floor_self(floor)
+od.set_direction_self(direction)
+```
+
+#### `func main() {...}` (Event handler)
+```
+    od.init() => network.init(...)
+
+    Button pressed => od.add_call => state.add_call
+    => network.send_to(ip, message) => network.broadcast(message)
+
 ```
