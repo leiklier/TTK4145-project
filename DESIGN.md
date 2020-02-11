@@ -2,13 +2,13 @@
 
 ## Overview
 
-The network is organized as a ring of nodes, where they are sorted on the time they joined the network. The node which joined first is called HEAD, whereas the node which joined last is called TAIL. This way, no master is needed, and fault tolerance can easily be added by higher level code without a need for a single source of truth.
+The network is organized as a ring of nodes, where they are sorted on the time they joined the network. The node which joined first is called `HEAD`, whereas the node which joined last is called `TAIL`. This way, no master is needed, and fault tolerance + global state synchronization can easily be added by higher level code without a need for a single source of truth.
 
 ### Joining the network
 
 There are two processes responsible in joining a network:
 
-1. The TAIL does at all times listen for `JOIN` messages on `#.#.#.255`. When such message is received, the node which sent the message is added as a new TAIL, and the previous TAIL is connected to the new TAIL instead of its HEAD. Now the ring has expanded.
+1. The TAIL does at all times listen for `JOIN` messages on `#.#.#.255`. When such a message is received, the node which sent the message is added as a new TAIL, and the previous TAIL is connected to the new TAIL instead of its HEAD. Now the ring has expanded.
 
     **Before:**
     ```
@@ -28,63 +28,81 @@ There are two processes responsible in joining a network:
 
 At intervals of `PING_INTERVAL`, each `node #i` sends a dummy TCP datagram to `node #(i+1)` to ensure that the node is alive and responding. This is done because TCP does not check whether or not a connection is working at all times - it merely makes it available for the program to use for communication.
 
-If no response are received, `node #(i+1)` is considered unavailable, and so `discard_node(node_ip)` is issued to kick it off the network.
-
-
-
-1. If a function `check_health() string` is provided as a callback to the initialization of the network, this function is run, and a string (most probably this should be a SHA256 or CRC-20 of the state synced over the network) is returned.
-
-2. `node #i`then requests from  `node #(i+1)` the result of its `check_health() string`.
-
-3. From here, there are multiple possible scenarioes:
-    1. `node #(i+1)` returns the same result from `check_health()` as `node #1`. Since the node responds and they give the same result from the `check_health()`, they are both considered healthy. No further actions should be taken.
-    2. One node returns a string different from the other. We now have a responding node, but their states are out of sync! To find out which node has the state which is considered "correct" by the network, `node #i` requests a `check_health()` from `node #(i-1)`. Hopefully, two nodes returns the same string. Let the one of `node #1` and `node #(i+1)` which holds the "majority votes" be `ip_synced`, and the remaining be `ip_to_sync`. Then issuing `sync_state(ip_synced, ip_to_sync)` will transmit the state the right direction and make them both in sync.
-    3. `node #(i+1)` does not respond within a time of size `MAX_WAIT_TIME_S`. The node should be considered unavailable, and needs to be disconnected from the network. This is done with the `discard_node(node_ip)` command.
+If no response is received, `node #(i+1)` is considered unavailable, and so `discard_node(node_ip)` is issued by `node #i` to kick it off the network.
 
 
 ### Broadcasting messages
 
 In its most simple form, a broadcast message can be sent to `#.#.#.255` using UDP, and it is then distributed to all nodes connected to the subnet. However, since UDP does not guarantee delivery, it requires a custom implemented handshake, and this can be quite cumbersome and error prone.
 
-A quite compelling alternative would be to use a list of the IP addresses of the nodes, and emulate a broadcast by sending a TCP datagram to each and every node on the network. If a node does not respond, we first try to retransmit the datagram. If the node is still unavailable, then we simply `discard_node(node_ip)` - `node_ip` being the IP of the malfunctioning node. This would be the preferred implementation, had it not been for the fact that the order in which the nodes receive messages makes the health check unusable. Also, it is not scalable if there are lots of nodes connected to the network.
+A quite compelling alternative would be to use a list of the IP addresses of the nodes, and emulate a broadcast by sending a TCP datagram to each and every node on the network. If a node does not respond, we first try to retransmit the datagram. If the node is still unavailable, then we simply `discard_node(node_ip)` - `node_ip` being the IP of the malfunctioning node. This would be the preferred implementation, had it not been for the fact that the order in which the nodes receive messages makes health checks nearly impossible (Why? We don't know if only half of the nodes have received a broadcast message when one node decides to check whether or not it is in sync with the rest). Also, it is not scalable if there are lots of nodes connected to the network since this requires a lot of possibly concurrent TCP connections.
 
-Instead, we have taken advantage of the ring topology of the network.
+Instead, we have taken advantage of the ring topology of the network. This solution solves all the problems mentioned above, and works as follows:
+
 1. When `node #i` wants to broadcast a message, it starts by sending it to `node #(i + 1)`
+2. `node #(i + 1)` acknowledges that the message was indeed received by sending the resulting message generated by `bcast_ack_cb()` back to `node #i`.
+3. `node #(i + 1)` then forwards the broadcast message to `node #(i + 2)`, and this node acknowledges by replying back to `node #(i + 1)` with `bcast_ack_cb()`.
+4. This process proceeds until `node #i` has received the message which it initially sent from `node #(i - 1)` and thereafter sends back `bcast_ack_cb()` to `node #(i - 1)`.
 
+**Note**: A new broadcast message _should not_ be handled by a node before `bcast_ack_cb()` has been called on the previous message!
 
-### Health check
+**Potential errors**:
+
+* It may happen that a `node #j` disconnects from the network in the middle of a broadcast. In order for the broadcast to finish successfully, the following should be done:
+
+    1. `node #(j - 1)` forwards the broadcast message to `node #(j + 1)` instead of the faulty `node #j`.
+    2. The `BROADCAST_ACK` received from `node #(j + 1)` is handled on `node #(j - 1)`.
+    3. `discard_node(node_ip_of_#j)` is called by `node #(j - 1)`.
+
+    So in practice, this is not seen as an error outside of the `network` module.
 
 ### Peer-to-peer messages
 
+It is also possible to send a message from `node #i`directly to a specific `node #j`. It makes no sense to also send this on the ring network, so P2P is implemented simply by sending a `TCP datagram` to `node #j`, and then waiting for the acknowledgement from `node #j` which is generated by `p2p_ack_cb(message_received)`. If no `ACK` was received, an error is raised.
 
-### Message format
+### Leaving the network
+
+### Discarding a node
+
+### TCP datagram format
 
 ```
-
+{
+    type: BROADCAST | BROADCAST_ACK | P2P | P2P_ACK | PING | PING_ACK,
+    sender: node_ip, // Needed by broadcast to know that it has
+                     // been passed around the ring
+    is_internal: boolean // if true, this datagram should be read and handled
+                         // by the network module itself. Used for e.g.
+                         // discarding a node
+    data: string // In practice, in most cases this would be a serialized JSON.
+                 // It should, however, not be serialized by this module as
+                 // the format should not be constrained by us.
+}
 ```
 
-### Interface
+## Threads
 
-#### Network
-- `network.init(bcast_ack_cb, ping_failed_cb)`
+### Receiver
 
-    There are two processes responsible in joining a network:
+This process is responsible for accepting new inbound connections, and forward them to the right receive channel. (Why do we need to receive all messages in one thread? Well, we have to read the `type` attribute of the message in order to know where it is supposed to go...)
 
-    1. The TAIL does at all times listen for `JOIN` messages on `#.#.#.255`. When such message is received, the node which sent the message is added as a new TAIL, and the previous TAIL is connected to the new TAIL instead of its HEAD. Now the ring has expanded.
+Possible channels are:
 
-        **Before:**
-        ```
-        (TAIL -> ) HEAD -> #2 -> #3 -> (...) -> #(n-1) -> TAIL ( -> HEAD)
-        ```
+* `p2p_messages_received`: Used for receiving `p2p` messages. Buffered
+* `broadcast_messages_received`: Used for receiving `broadcast` messages. Buffered.
+* `ping_message_received`: Used for receiving `ping` messages. Notice that this channel is unbuffered. This comes from the fact that only the proceeding node will try to ping it, and that it will not be re-pinged before it has answered to the current ping.
+* `ping_ack_message_received`: Used for receiving `ping_ack` messages. Unbuffered.
 
-        **After:**
-        ```
-        (TAIL -> ) HEAD -> #2 -> #3 -> (...) -> #(n-1) -> #n -> TAIL ( -> HEAD)
-        ```
+## Interface
 
-    2. A node which wants to join the network sends at an interval `JOIN_MSG_INTERVAL` a `JOIN` message on `#.#.#.255`. At the same time it should act as a TAIL listening for other `JOIN` messages.
+### network
 
-        This solves the problem of creating the network initially when no network exists. Since `JOIN` messages are not sent continuously, there will be a race condition where one of two nodes will send the `JOIN` message first. The node which sends this message will become HEAD, whereas the node which receives the message becomes TAIL. The `JOIN` message should be done in a full handshake such that a node cannot be TAIL in two networks. Also, a node should node should not start to listen for `JOIN` messages BEFORE it has tried to join a network.
+The network module is the supermodule exposing the whole network stack. Its interface is explained in further details below:
+
+- `network.init(p2p_ack_cb(message_received), bcast_ack_cb(message_received), discard_node_cb(node_ip))`
+
+    This function spawns the processes required by the module as described above, and configures the callback functions which was provided as arguments to the function.
+
 - `network.broadcast(message)`
 
     This function uses `network.send_to(ip_of_next_node, message)` with a message marked specifically as `BROADCAST` to start transmitting a broadcast message. A message is broadcasted by being sent around one iteration of the circle in the _direction_ of `HEAD -> TAIL`. See processes->broadcast for more info.
@@ -92,16 +110,27 @@ Instead, we have taken advantage of the ring topology of the network.
 - `network.send_to(node_ip, message)`
 
 
+## p2p
 
 
 ```golang
-network.init(bcast_ack_cb, ping_failed_cb)
+network.start(p2p_ack_cb(message_received), bcast_ack_cb(message_received), discard_node_cb)
+network.stop()
+rx_chan, rx_ack_chan, tx_chan, err := network.create_channel(channel_type, channel_name)
+err:= network.destroy_channel(channel_name)
 network.broadcast(message)
 network.send_to(node_ip, message)
 network.get_peers()
 network.poll_peer_update()
-network.receive(buffer)
+network.receive_to(buffer, filter_message_type)
 ```
+
+### peers
+
+This module is responsible for keeping track of the peers connected to the network. It is merely a datastore
+
+### broadcast
+
 #### State
 
 **GLOBAL**:
@@ -127,7 +156,7 @@ network.receive(buffer)
 **LOCAL**:
 
 **Internal lights** (local to the elevator, so this is not shared):
-| FLOOR | is_on |
+| FLOOR | is_active |
 | --- | --- |
 | 1 | true |
 | 2 | false |
