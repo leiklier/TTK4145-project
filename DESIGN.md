@@ -20,9 +20,18 @@ There are two processes responsible in joining a network:
     (TAIL -> ) HEAD -> #2 -> #3 -> (...) -> #(n-1) -> #n -> TAIL ( -> HEAD)
     ```
 
-2. A node which wants to join the network sends at an interval `JOIN_MSG_INTERVAL` a `JOIN` message on `#.#.#.255`. At the same time it should act as a TAIL listening for other `JOIN` messages.
+2. A node which wants to join the network first tries to send a  `JOIN` message on `#.#.#.255`. If no response is received, it will assume that there exist no network at LAN. Therefore, it will create a new network where it is both HEAD and TAIL, and thus accepts new `JOIN` messages. When a `node #2` then tries to join the network, it will see this node and become the new TAIL of the network.
 
-    This solves the problem of creating the network initially when no network exists. Since `JOIN` messages are not sent continuously, there will be a race condition where one of two nodes will send the `JOIN` message first. The node which sends this message will become HEAD, whereas the node which receives the message becomes TAIL. The `JOIN` message should be done in a full handshake such that a node cannot be TAIL in two networks. Also, a node should node should not start to listen for `JOIN` messages BEFORE it has tried to join a network.
+**The process of joining a network is as follows (assume node #1=HEAD, node #2, and node #3=TAIL):**
+1. `node #4` sends a `JOIN` message on `#.#.#.255`.
+
+2. `node #3` listens on `#.#.#.255`, and thus receives this message.
+
+3. `node #3` issues an `add_tail(ip_of_node_4)`. This command does the following:
+
+    1. Broadcasts the `JOIN`ing of `node #4` on the network. This broadcast message is started by sending it to `HEAD`.
+    2. The broadcast message traverses through 1->2->3. When it reaches the old TAIL (meaning, `node #3`), `node #3` will first send the list of active nodes to `node #4`. Then `node #3` will send the result of `join_cb()` as specified in `network.start(...)` function to `node #4` as a p2p message.
+    3. The node has now successfully `JOIN`ed the network, and is ready to serve!
 
 ### Checking node availabilty
 
@@ -114,15 +123,13 @@ The network module is the supermodule exposing the whole network stack. Its inte
 
 
 ```golang
-network.start(p2p_ack_cb(message_received), bcast_ack_cb(message_received), discard_node_cb)
+network.start(bcast_received_cb(message_received, ack_received), discard_node_cb(node_ip), join_cb)
 network.stop()
-rx_chan, rx_ack_chan, tx_chan, err := network.create_channel(channel_type, channel_name)
-err:= network.destroy_channel(channel_name)
-network.broadcast(message)
-network.send_to(node_ip, message)
+ack_received, err := network.broadcast(message)
+ack_received, err := network.send_to(node_ip, message)
 network.get_peers()
 network.poll_peer_update()
-network.receive_to(buffer, filter_message_type)
+network.receive_to(buffer)
 ```
 
 ### peers
