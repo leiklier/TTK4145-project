@@ -1,23 +1,28 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
+	"os"
 
 	"./network/peers"
 )
 
 func main() {
+	go printChanges()
 	peers.AddTail("Node 1")
 	peers.AddTail("Node 2")
 	peers.AddTail("Node 3")
-	fmt.Printf("Self is %s\n", peers.GetRelativeTo(peers.Self, 0))
-	fmt.Printf("Current HEAD is %s\n", peers.GetRelativeTo(peers.Head, -1))
-	fmt.Printf("Current Tail is %s\n", peers.GetRelativeTo(peers.Tail, 2))
+	peers.Remove("Node 2")
+	peers.Set([]string{"Node 5", "Node 6", "Node 7"})
 	fmt.Println(peers.GetAll())
+	bufio.NewReader(os.Stdin).ReadBytes('\n')
 }
 
 func printChanges() {
 	for {
-		fmt.Printf("A node was %s")
+		changeEvent := peers.PollUpdate()
+		fmt.Printf("A node with IP %s was %s\n", changeEvent.Peer, changeEvent.Event)
+		fmt.Printf("\n")
 	}
 }

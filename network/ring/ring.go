@@ -12,12 +12,13 @@ import (
 const gPORT = "1567"
 const gbroadcastIP = "255.255.255.255"
 
-var HEAD = true
+var HEAD = true // Has to be changed
 
-var gselfIP string
-
+// Only runs if you are HEAD, listen for new machines broadcasting
+// on the network using UDP. The new machine is added to the list of
+// known machines. That list is propagted trpough the ring to update the ring
 func Listenjoin() {
-	if !HEAD { // Hmmm
+	if !HEAD { // Hmmm, has to be changed
 		return
 	}
 	buffer := make([]byte, 1024) // What happens if packet > buffer
@@ -32,12 +33,14 @@ func Listenjoin() {
 	defer ln.Close()
 
 	for {
-		n_bytes, addr, err := ln.ReadFrom(buffer)
-		peers.AddTail(string(buffer[:n]))
-		err = ring.Broadcast(peers.GetAll)
-		if err != nil {
-			fmt.Println("Failed to broadcast")
-			fmt.Println(err)
+		nBytes, addr, err := ln.ReadFrom(buffer)
+		if nBytes > 0 {
+			peers.AddTail(string(buffer[:nBytes]))
+			err = ring.Broadcast(peers.GetAll)
+			if err != nil {
+				fmt.Println("Failed to broadcast")
+				fmt.Println(err)
+			}
 		}
 
 	}
