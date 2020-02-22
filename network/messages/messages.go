@@ -7,6 +7,7 @@ import (
 	"net"
 
 	"../peers"
+	"../receivers"
 )
 
 // Enums
@@ -14,7 +15,6 @@ const (
 	Broadcast = iota
 	Ping
 	PingAck
-	GetReceiver
 )
 
 type Message struct {
@@ -23,19 +23,6 @@ type Message struct {
 	SenderIP string // Only necessary for Broadcast (we need to know where it started...)
 	Data     []byte
 }
-
-type Receiver struct {
-	Name    string
-	Channel chan []byte
-}
-
-type ControlSignal struct {
-	Command         int
-	Payload         string
-	ResponseChannel chan Receiver
-}
-
-var gControlChannel = make(chan ControlSignal, 100)
 
 // Variables
 var gIsInitialized = false
@@ -68,7 +55,7 @@ func SendMessage(purpose string, data []byte) {
 }
 
 func Receive(purpose string) []byte {
-	return <-getReceiveChannel(purpose)
+	return <-receivers.GetChannel(purpose)
 }
 
 func Start() {
@@ -80,55 +67,8 @@ func initialize() {
 		return
 	}
 	gIsInitialized = true
-	go receiverServer()
 	go client()
 	go server()
-}
-
-func getReceiveChannel(name string) chan []byte {
-	controlSignal := ControlSignal{
-		Command:         GetReceiver,
-		Payload:         name,
-		ResponseChannel: make(chan Receiver),
-	}
-	gControlChannel <- controlSignal
-
-	receiver := <-controlSignal.ResponseChannel
-	return receiver.Channel
-}
-
-func receiverServer() {
-	var receivers []Receiver
-	for {
-		controlSignal := <-gControlChannel
-
-		switch controlSignal.Command {
-		case GetReceiver:
-			name := controlSignal.Payload
-			receiverDoesExist := false
-
-			for _, receiver := range receivers {
-				if receiver.Name == name {
-					receiverDoesExist = true
-					controlSignal.ResponseChannel <- receiver
-					break
-				}
-			}
-
-			if !receiverDoesExist {
-				// No such receiver exists, so create a new one, add it to our list
-				// of receivers and return it on response:
-				receiver := Receiver{
-					Name:    name,
-					Channel: make(chan []byte, 100),
-				}
-				receivers = append(receivers, receiver)
-				controlSignal.ResponseChannel <- receiver
-			}
-
-			break
-		}
-	}
 }
 
 func client() {
@@ -232,7 +172,7 @@ func handleIncomingConnection(conn net.Conn, shouldDisconnectChannel chan bool) 
 
 				if messageReceived.SenderIP != localIP {
 					// We should forward the message to next node
-					getReceiveChannel(messageReceived.Purpose) <- messageReceived.Data
+					receivers.GetChannel(messageReceived.Purpose) <- messageReceived.Data
 					gSendForwardChannel <- messageReceived
 				}
 
