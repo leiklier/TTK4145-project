@@ -25,7 +25,7 @@ type Message struct {
 
 // Variables
 var gIsInitialized = false
-var gPort = 69420
+var gPort = 6969
 
 // Channels
 var gServerIPChannel = make(chan string)
@@ -49,12 +49,17 @@ func SendMessage(purpose string, data []byte) {
 		Purpose:  purpose,
 		Type:     Broadcast,
 		SenderIP: localIP,
+		Data:     data,
 	}
 	gSendForwardChannel <- message
 }
 
-func Receive(purpose int) []byte {
+func Receive(purpose string) []byte {
 	return <-gBroadcastReceivedChannel
+}
+
+func Start() {
+	initialize()
 }
 
 func initialize() {
@@ -68,14 +73,14 @@ func initialize() {
 
 func client() {
 	serverIP := <-gServerIPChannel
-	var shouldDisconnectChannel = make(chan bool)
+	var shouldDisconnectChannel = make(chan bool, 10)
 	go handleOutboundConnection(serverIP, shouldDisconnectChannel)
 
 	// We only want one active client at all times:
 	for {
 		serverIP := <-gServerIPChannel
 		shouldDisconnectChannel <- true
-		shouldDisconnectChannel = make(chan bool)
+		shouldDisconnectChannel = make(chan bool, 10)
 		go handleOutboundConnection(serverIP, shouldDisconnectChannel)
 	}
 }
@@ -130,7 +135,7 @@ func server() {
 	}
 
 	// Listen to incoming connections
-	var shouldDisconnectChannel = make(chan bool)
+	var shouldDisconnectChannel = make(chan bool, 10)
 	for {
 		// Accept a new connection
 		conn, err := listener.Accept()
@@ -142,7 +147,7 @@ func server() {
 		// already connected because we only accept one connection
 		// at all times
 		shouldDisconnectChannel <- true
-		shouldDisconnectChannel = make(chan bool)
+		shouldDisconnectChannel = make(chan bool, 10)
 		handleIncomingConnection(conn, shouldDisconnectChannel)
 
 	}
@@ -153,6 +158,7 @@ func handleIncomingConnection(conn net.Conn, shouldDisconnectChannel chan bool) 
 
 	bytesReceivedChannel := make(chan []byte)
 	go readMessages(conn, bytesReceivedChannel)
+	fmt.Printf("got connection")
 
 	for {
 		select {
@@ -164,10 +170,10 @@ func handleIncomingConnection(conn net.Conn, shouldDisconnectChannel chan bool) 
 			switch messageReceived.Type {
 			case Broadcast:
 				localIP := peers.GetRelativeTo(peers.Self, 0)
-				gBroadcastReceivedChannel <- messageReceived.Data
 
 				if messageReceived.SenderIP != localIP {
 					// We should forward the message to next node
+					gBroadcastReceivedChannel <- messageReceived.Data
 					gSendForwardChannel <- messageReceived
 				}
 
@@ -186,7 +192,6 @@ func handleIncomingConnection(conn net.Conn, shouldDisconnectChannel chan bool) 
 			serializedMessage, _ := json.Marshal(messageToSend)
 			fmt.Fprintf(conn, string(serializedMessage)+"\n\000")
 			break
-
 		case <-shouldDisconnectChannel:
 			return
 		}
