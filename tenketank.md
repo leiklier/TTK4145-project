@@ -50,3 +50,10 @@
     - Hva skjer når en ny node joiner? Sync state
     - Hva skjer når en node forlater ? redistribuere ordre
     - Funksjon for å kicke en node
+
+
+
+
+## Tanker til cost funksjon
+
+1. Formål: Distrubuere enn hallcall til den mest aktuelle heisen.

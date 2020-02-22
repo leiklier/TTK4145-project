@@ -70,7 +70,6 @@ func Listenjoin() {
 				fmt.Println(err)
 			}
 		}
-
 	}
 }
 
