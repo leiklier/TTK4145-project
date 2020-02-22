@@ -14,6 +14,33 @@ const gPORT = 1567
 const gBroadcastIP = "255.255.255.255"
 
 var HEAD = true // Has to be changed
+const gConnectAttempts = 5
+const gBCASTPING = "RING EXISTS"
+
+func Init() {
+	var ringExists = false
+	ln, err := net.ListenPacket("udp", "255.255.255.255:"+PORT) // Maybe have helper function returning ln
+	buffer := make([]byte, 1024)                                // What happens if packet > buffer
+
+	if err != nil {
+		fmt.Println("Unable to listen to udp broadcast")
+		fmt.Println(err)
+	}
+
+	defer ln.Close()
+
+	for i := 0; i < gConnectAttempts; i++ {
+		nBytes, addr, err := ln.ReadFrom(buffer)
+		if nBytes > 0 {
+			ringExists = true
+		}
+		
+	}
+
+	}
+
+}
+
 
 // Only runs if you are HEAD, listen for new machines broadcasting
 // on the network using UDP. The new machine is added to the list of
@@ -37,7 +64,7 @@ func Listenjoin() {
 		nBytes, addr, err := ln.ReadFrom(buffer)
 		if nBytes > 0 {
 			peers.AddTail(string(buffer[:nBytes]))
-			err = ring.Broadcast(peers.GetAll)
+			err = ring.Broadcast(peers.GetAll())
 			if err != nil {
 				fmt.Println("Failed to broadcast")
 				fmt.Println(err)
