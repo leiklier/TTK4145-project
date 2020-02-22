@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 
+	"../p2p"
 	"../peers"
 )
 
@@ -29,15 +30,14 @@ func Listenjoin() {
 	for {
 		n_bytes, addr, err := ln.ReadFrom(buffer)
 		peers.AddTail(string(buffer[:n]))
-		err := ring.Broadcast(peers.GetAll)
+		err = ring.Broadcast(peers.GetAll)
 		if err != nil {
 			fmt.Println("Failed to broadcast")
 			fmt.Println(err)
 		}
 
 	}
-	"../p2p"
-)
+}
 
 var gPort int
 
