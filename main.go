@@ -1,28 +1,26 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
-	"os"
+	"time"
 
-	"./network/peers"
+	"./network/messages"
 )
 
 func main() {
-	go printChanges()
-	peers.AddTail("Node 1")
-	peers.AddTail("Node 2")
-	peers.AddTail("Node 3")
-	peers.Remove("Node 2")
-	peers.Set([]string{"Node 5", "Node 6", "Node 7"})
-	fmt.Println(peers.GetAll())
-	bufio.NewReader(os.Stdin).ReadBytes('\n')
+	messages.Start()
+	go receiveMessages()
+	time.Sleep(4 * time.Second)
+	messages.ConnectTo("10.100.23.203")
+	for {
+		messages.SendMessage("blabla", []byte("heyhey"))
+		time.Sleep(2 * time.Second)
+	}
 }
 
-func printChanges() {
+func receiveMessages() {
 	for {
-		changeEvent := peers.PollUpdate()
-		fmt.Printf("A node with IP %s was %s\n", changeEvent.Peer, changeEvent.Event)
-		fmt.Printf("\n")
+		newMessage := messages.Receive("blabla")
+		fmt.Printf("Received:", string(newMessage))
 	}
 }
