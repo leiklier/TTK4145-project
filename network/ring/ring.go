@@ -7,7 +7,27 @@ import (
 	"syscall"
 	"time"
 
+	"../messages"
 	"../peers"
+)
+
+// type DataType struct {
+// 	type
+// 	data []byte
+// }
+
+// type Message struct {
+// 	Type Broadcast Ping PingAck
+// 	Purpose: Custom string
+// 	Data
+// }
+
+// messages.ReceiveBroadcast("Custom string")
+// messages.ReceivePingAck
+
+const ( // Ugh
+	NodeChange = "NodeChange"
+	CallList   = "CallList"
 )
 
 const gPORT = 1567
@@ -17,6 +37,9 @@ var gHEAD = false // Has to be changed
 const gConnectAttempts = 5
 const gBCASTPING = "RING EXISTS"
 const gTIMEOUT = 2
+
+
+order_chn := make(chan store.ElevatorOrder)
 
 // Initializes the network if it's present. Establishes a new network if not
 func Init() {
@@ -39,13 +62,14 @@ func Init() {
 	}
 	if ringExists {
 		sendJoinMSG()
-		// Start tcp ring server?
 	} else {
 		gHEAD = true
 		go Listenjoin()
+		peers.GetAll() // Sets also the head and tail
 	}
-	// go peers.Server()
 
+	go maintainRing()
+	go listenCalls()
 }
 
 // Only runs if you are HEAD, listen for new machines broadcasting
@@ -66,31 +90,48 @@ func Listenjoin() {
 		nBytes, addr, err := conn.ReadFrom(buffer)
 		if nBytes > 0 {
 			peers.AddTail(string(buffer[:nBytes]))
-			err = ring.addNode(peers.GetAll())
+			msg := messages.Message{messages.Broadcast, AddNode, []byte(peersList)}
+			messages.Send(msg)
 			if err != nil {
 				fmt.Println("Failed to broadcast")
 				fmt.Println(err)
 			}
 		}
-
 	}
 }
 
-func addNode(peersList []string) {
-	// peers.Send(msg)
+func maintainRing() {
+	for {
+		msg := messages.Recieve(NodeChange)
+		peers.Set(string(msg.Data))
+		messages.Send(msg)
+	}
 }
 
-func listenBroadcast() {
 
+func listenCallsIn() {
+	for {
+		msg := messages.Receive(CallList)
+		store.reciveElevState <- msg.Data
+	}
+}
+
+
+func listenCallsOut() {
+	for{
+		states := <-store.SendElevState
+		msg := messages.Message{CallList, messages.Broadcast, states}
+		messages.Send(msg)
+	}
 }
 
 // send msg to 255
 func sendJoinMSG() {
 	// Connect til
-	gselfIP := peers.GetRelativeTo(peers.Self, 0)
+	selfIP := peers.GetRelativeTo(peers.Self, 0)
 	conn := dialBroadcastUDP(gPORT)
 	addr, _ := net.ResolveUDPAddr("udp4", fmt.Sprintf("%s:%d", gBroadcastIP, gPORT))
-	conn.WriteTo([]byte(gselfIP), addr)
+	conn.WriteTo([]byte(selfIP), addr)
 }
 
 // Tar inn port, returnerer en udpconn til porten.
