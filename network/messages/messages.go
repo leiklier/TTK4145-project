@@ -14,11 +14,11 @@ const (
 	Broadcast = iota
 	Ping
 	PingAck
-	Direct
 )
 
 type Message struct {
-	Purpose  int    // Broadcast or Ping or PingAck og Forward or Backward
+	Purpose  string
+	Type     int    // Broadcast or Ping or PingAck
 	SenderIP string // Only necessary for Broadcast (we need to know where it started...)
 	Data     []byte
 }
@@ -33,8 +33,7 @@ var gServerIPChannel = make(chan string)
 var gSendForwardChannel = make(chan Message, 100)
 var gSendBackwardChannel = make(chan Message, 100)
 
-var gDirectReceivedChannel = make(chan Message, 100)
-var gBroadcastReceivedChannel = make(chan Message, 100)
+var gBroadcastReceivedChannel = make(chan []byte, 100)
 var gPingAckReceivedChannel = make(chan Message, 100)
 
 func ConnectTo(IP string) {
@@ -42,24 +41,20 @@ func ConnectTo(IP string) {
 	gServerIPChannel <- IP
 }
 
-func Send(message Message) {
+func SendMessage(purpose string, data []byte) {
 	initialize()
-	if message.Purpose == PingAck {
-		gSendBackwardChannel <- message
-		return
+
+	localIP := peers.GetRelativeTo(peers.Self, 0)
+	message := Message{
+		Purpose:  purpose,
+		Type:     Broadcast,
+		SenderIP: localIP,
 	}
 	gSendForwardChannel <- message
 }
 
-func Receive(purpose int) {
-	switch purpose {
-	case Direct:
-		return <-gDirectReceivedChannel
-	case Broadcast:
-		return <-gBroadcastReceivedChannel
-	case PingAck:
-		return <-gPingAckReceivedChannel
-	}
+func Receive(purpose int) []byte {
+	return <-gBroadcastReceivedChannel
 }
 
 func initialize() {
@@ -85,7 +80,7 @@ func client() {
 	}
 }
 
-func handleOutboundConnection(serverIP, shouldDisconnectChannel chan bool) {
+func handleOutboundConnection(serverIP string, shouldDisconnectChannel chan bool) {
 	conn, err := net.Dial("tcp", fmt.Sprintf("%s:%d", serverIP, gPort))
 	if err != nil {
 		fmt.Printf("TCP client connect error: %s", err)
@@ -93,18 +88,21 @@ func handleOutboundConnection(serverIP, shouldDisconnectChannel chan bool) {
 	}
 	defer conn.Close()
 
+	bytesReceivedChannel := make(chan []byte)
+	go readMessages(conn, bytesReceivedChannel)
+
 	for {
 		select {
-		case receiveBuffer, err := bufio.NewReader(conn).ReadBytes('\n'):
+		case bytesReceived := <-bytesReceivedChannel:
 			// We have received a message:
 			if err != nil {
 				fmt.Printf("TCP server receive error: %s", err)
 				conn.Close()
 			}
 			var messageReceived Message
-			json.Unmarshal(receiveBuffer, &messageReceived)
+			json.Unmarshal(bytesReceived, &messageReceived)
 
-			if messageReceived.Purpose != PingAck {
+			if messageReceived.Type != PingAck {
 				break
 			}
 
@@ -126,7 +124,7 @@ func handleOutboundConnection(serverIP, shouldDisconnectChannel chan bool) {
 
 func server() {
 	// Boot up TCP server
-	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", _port))
+	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", gPort))
 	if err != nil {
 		fmt.Printf("TCP server listener error: %s", err)
 	}
@@ -153,34 +151,30 @@ func server() {
 func handleIncomingConnection(conn net.Conn, shouldDisconnectChannel chan bool) {
 	defer conn.Close()
 
+	bytesReceivedChannel := make(chan []byte)
+	go readMessages(conn, bytesReceivedChannel)
+
 	for {
 		select {
 		// We have received a message
-		case receiveBuffer, err := bufio.NewReader(conn).ReadBytes('\n'):
-			if err != nil {
-				fmt.Printf("TCP server receive error: %s", err)
-				conn.Close()
-			}
+		case bytesReceived := <-bytesReceivedChannel:
 			var messageReceived Message
-			json.Unmarshal(receiveBuffer, &messageReceived)
+			json.Unmarshal(bytesReceived, &messageReceived)
 
-			switch messageReceived.Purpose {
-			case Direct:
-				gDirectReceivedChannel <- messageReceived
-				break
+			switch messageReceived.Type {
 			case Broadcast:
 				localIP := peers.GetRelativeTo(peers.Self, 0)
-				gBroadcastReceivedChannel <- messageReceived
+				gBroadcastReceivedChannel <- messageReceived.Data
 
 				if messageReceived.SenderIP != localIP {
 					// We should forward the message to next node
-					Send(messageReceived)
+					gSendForwardChannel <- messageReceived
 				}
 
 				break
 			case Ping:
 				messageToSend := Message{
-					Purpose: PingAck,
+					Type: PingAck,
 				}
 				gSendBackwardChannel <- messageToSend
 				break
@@ -196,6 +190,20 @@ func handleIncomingConnection(conn net.Conn, shouldDisconnectChannel chan bool) 
 		case <-shouldDisconnectChannel:
 			return
 		}
+
+	}
+}
+
+func readMessages(conn net.Conn, receiveChannel chan []byte) {
+	defer conn.Close()
+
+	for {
+		bytesReceived, err := bufio.NewReader(conn).ReadBytes('\n')
+		if err != nil {
+			fmt.Printf("TCP server receive error: %s", err)
+			return
+		}
+		receiveChannel <- bytesReceived
 
 	}
 }
