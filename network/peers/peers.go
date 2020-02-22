@@ -8,12 +8,15 @@ import (
 // Enums
 const (
 	Get = iota
+	Replace
+	Delete
 	Append
 	Self
 	Head
 	Tail
-	Added   = "Added"
-	Removed = "Removed"
+	Added    = "Added"    // Used when a peer was added
+	Removed  = "Removed"  // Used when a peer was removed
+	Replaced = "Replaced" // Used when all peers are replaced by new
 )
 
 type ControlSignal struct {
@@ -22,7 +25,7 @@ type ControlSignal struct {
 	ResponseChannel chan []string
 }
 
-var controlChannel = make(chan ControlSignal)
+var controlChannel = make(chan ControlSignal, 100)
 
 type ChangeEvent struct {
 	Event string // Added or Removed
@@ -35,6 +38,31 @@ var changeChannel = make(chan ChangeEvent, 100)
 var isInitialized = false
 var localIP string
 
+// Set takes an array of IP addresses, DELETES all existing
+// peers and adds the new IP addresses instead, in the same
+// order as they appear in the IPs array.
+func Set(IPs []string) {
+	initialize()
+	controlSignal := ControlSignal{
+		Command: Replace,
+		Payload: IPs,
+	}
+	controlChannel <- controlSignal
+}
+
+// Remove deletes the peer with a certain IP
+func Remove(IP string) {
+	initialize()
+	controlSignal := ControlSignal{
+		Command: Delete,
+		Payload: []string{IP},
+	}
+	controlChannel <- controlSignal
+}
+
+// AddTail takes an IP address in the form of a string,
+// and adds it at the end of the list of peers, thus
+// creating a new tail. It returns nothing
 func AddTail(IP string) {
 	initialize()
 	controlSignal := ControlSignal{
@@ -44,10 +72,20 @@ func AddTail(IP string) {
 	controlChannel <- controlSignal
 }
 
+// PollUpdate blocks until a new change has occured in the peers
+// when such a change has occured, it returns a ChangeEvent struct
+// which has the following format:
+// type ChangeEvent struct {
+// 		Event string // Added or Removed
+//		Peer  string
+// }
 func PollUpdate() ChangeEvent {
+	initialize()
 	return <-changeChannel
 }
 
+// GetAll returns the array of peers in the correct order
+// so the first element is HEAD and the last element is Tail
 func GetAll() []string {
 	initialize()
 	controlSignal := ControlSignal{
@@ -59,6 +97,11 @@ func GetAll() []string {
 	return peers
 }
 
+// GetRelativeTo takes either peers.Head, peers.Tail or peers.Self
+// as first argument. Then it returns the ip of that peer if offset=0.
+// If offset is not 0, then it adds that such that i.e. with role=peers.Self
+// and offset=1, it returns the peer AFTER Self, and with offset=-1 it returns
+// the peer BEFORE Self.
 func GetRelativeTo(role int, offset int) string {
 	initialize()
 	peers := GetAll()
@@ -104,6 +147,7 @@ func peersServer() {
 		case Get:
 			controlSignal.ResponseChannel <- peers
 			break
+
 		case Append:
 			peers = append(peers, controlSignal.Payload...)
 			for _, newPeer := range controlSignal.Payload {
@@ -114,6 +158,30 @@ func peersServer() {
 				changeChannel <- changeEvent
 			}
 			break
+
+		case Replace:
+			peers = controlSignal.Payload
+			changeEvent := ChangeEvent{
+				Event: Replaced,
+			}
+			changeChannel <- changeEvent
+			break
+
+		case Delete:
+			peerToRemove := controlSignal.Payload[0]
+			for i, peer := range peers {
+				if peer == peerToRemove {
+					copy(peers[i:], peers[i+1:]) // Shift peers[i+1:] left one index.
+					peers[len(peers)-1] = ""     // Erase last element (write zero value).
+					peers = peers[:len(peers)-1] // Truncate slice.
+					changeEvent := ChangeEvent{
+						Event: Removed,
+						Peer:  peer,
+					}
+					changeChannel <- changeEvent
+					break
+				}
+			}
 		}
 	}
 }
