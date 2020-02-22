@@ -8,17 +8,20 @@ import (
 	"../elevio"
 )
 
-type ClearMethod int
+const numElevators = 3 // OBS OBS gAllValues må håndteres ved skalering
 
+type ClearVariant int
+
+// Clear Variants, trenger det litt senere
 const (
-	CV_All    ClearMethod = 0
-	CV_InDirn             = 1
+	CV_All    ClearVariant = 0
+	CV_InDirn              = 1
 )
 
 type HallCall int
 
 const (
-	HC_none HallCall = -1
+	HC_none HallCall = -1 // Nothing to do
 	HC_up            = 0
 	HC_down          = 1
 	HC_both          = 2
@@ -30,6 +33,7 @@ const (
 	DIR_up   Direction = 1
 	DIR_down           = -1
 	DIR_idle           = 0
+	DIR_both           = 2 // Needed for conversion with HC_both
 )
 
 type ElevatorState struct {
@@ -48,9 +52,10 @@ type Command struct {
 }
 
 const numFloors = 4
+
 const _pollRate = 20 * time.Millisecond
 
-var gAllElevatorStates []ElevatorState
+var gAllElevatorStates = make([]ElevatorState, numElevators) // TODO fiks dynamisk shit
 
 var localElevator = initElevatorState()
 var mutex = &sync.Mutex{}
@@ -202,16 +207,114 @@ func GetDestination(dst chan<- Command) { // make cab calls have priority over h
 	}
 }
 
-// Returns IP address of most suited elevator to handle hallcal
-func mostSuitedElevator(hallCall HallCall) string {
-	// Steg 1: Gi ordren til heis uten calls, som er nærmest
+// GO has no built in absolute value function for integers, so must create my own
+// Abs returns the absolute value of x.
+func Abs(x int) int {
+	if x < 0 {
+		return -x
+	}
+	return x
+}
 
-	//	type ElevatorState struct {
-	/* 	ip            string
-	   	current_floor int
-	   	direction     Direction           // 1=up, 0=idle -1=down
-	   	hall_calls    [numFloors]HallCall // 0=up, -1=idle 1=down. Index is floor
-	   	cab_calls     [numFloors]bool     // index is floor
-	   	door_open     bool
-	   }*/
+// Convert from HC_dir to Elevator Direction
+func HCDirToElevDir(hc HallCall) Direction {
+	switch hc {
+	case HC_up:
+		return DIR_up
+	case HC_down:
+		return DIR_down
+	case HC_both:
+		return DIR_both
+	default: // Assumes HC_none
+		return DIR_idle
+	}
+}
+
+// Returns IP address of most suited elevator to handle hallcal
+func mostSuitedElevator(hc HallCall, originFloor int) string {
+	// Steg 1: Gi ordren til heis uten calls, som er nærmest
+	// Håndterer om det er idle, og gir til idle
+
+	isClear := true
+	var candidates []ElevatorState
+	for _, elev := range gAllElevatorStates {
+		hc := elev.hall_calls
+
+		for _, v := range hc {
+			if v != (HC_none) {
+				isClear = false
+				break
+			}
+		}
+		if isClear {
+			candidates = append(candidates, elev)
+		}
+	}
+	if isClear {
+		currMaxDiff := numFloors + 1
+		// IP of closest elevator to origin floor. Default with err msg
+		currCand := "Something went wrong"
+		for _, elev := range candidates {
+			floorDiff := Abs(elev.current_floor - originFloor)
+			if floorDiff < currMaxDiff {
+				currMaxDiff = floorDiff
+				currCand = elev.ip
+			}
+		}
+		return currCand
+	} else {
+
+		// Steg 2
+		currMaxFS := 0
+		var currentMax string // IP of elevator with highest FSvalue
+
+		for _, elev := range gAllElevatorStates {
+			// Extract elevator information
+			currFloor := elev.current_floor
+			elevDir := elev.direction
+
+			hcDir := HCDirToElevDir(hc)
+
+			var sameDir bool
+			if hcDir == elevDir {
+				sameDir = true
+			} else {
+				sameDir = false
+			}
+			floorDiff := Abs(currFloor - originFloor)
+
+			var goingTowards bool
+			if (currFloor-originFloor) > 0 && elevDir == DIR_down {
+				goingTowards = true
+			} else if (currFloor-originFloor) < 0 && elevDir == DIR_down {
+				goingTowards = false
+			} else if (currFloor-originFloor) > 0 && elevDir == DIR_up {
+				goingTowards = false
+			} else if (currFloor-originFloor) < 0 && elevDir == DIR_up {
+				goingTowards = true
+			} else if (currFloor - originFloor) == 0 {
+				// Hmmmm, this means that it is at the same floor when button is pressed.
+				// Extremely unlikely...
+			} else {
+				// Mby add default case to make sure that goingTowards has a value...
+				// If for some reason the above expressions should fail,
+				// we could just assume the worst and set goingTowards = false
+			}
+
+			var FS int
+			// Computing FS Values based upon cases:
+			if goingTowards && sameDir {
+				FS = (numFloors - 1) + 2 - floorDiff
+			} else if goingTowards && !sameDir {
+				FS = (numFloors - 1) + 1 - floorDiff
+			} else if !goingTowards {
+				FS = 1
+			}
+			if FS > currMaxFS {
+				currMaxFS = FS
+				currentMax = elev.ip
+			}
+		}
+		return currentMax
+	}
 }
