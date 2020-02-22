@@ -3,8 +3,10 @@ package messages
 import (
 	"bufio"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
+	"time"
 
 	"../peers"
 	"../receivers"
@@ -30,17 +32,32 @@ var gPort = 6969
 
 // Channels
 var gServerIPChannel = make(chan string)
+var gConnectedToServerChannel = make(chan string)
+var gDisconnectedFromServerChannel = make(chan string)
 
 var gSendForwardChannel = make(chan Message, 100)
 var gSendBackwardChannel = make(chan Message, 100)
 
 var gPingAckReceivedChannel = make(chan Message, 100)
 
-func ConnectTo(IP string) {
+func ConnectTo(IP string) error {
 	initialize()
 	gServerIPChannel <- IP
+	select {
+	case <-gConnectedToServerChannel:
+		return nil
+	case <-time.After(2 * time.Second):
+		return errors.New("TIMED_OUT")
+	}
 }
 
+func ServerDisconnected() string {
+	return <-gDisconnectedFromServerChannel
+}
+
+// SendMessage takes a byte array and sends it
+// to the node which it is connected to by ConnectTo
+// purpose is used to filter the message on the receiving end
 func SendMessage(purpose string, data []byte) {
 	initialize()
 
@@ -55,6 +72,7 @@ func SendMessage(purpose string, data []byte) {
 }
 
 func Receive(purpose string) []byte {
+	initialize()
 	return <-receivers.GetChannel(purpose)
 }
 
@@ -91,10 +109,17 @@ func handleOutboundConnection(serverIP string, shouldDisconnectChannel chan bool
 		fmt.Printf("TCP client connect error: %s", err)
 		return
 	}
-	defer conn.Close()
+
+	defer func() {
+		defer fmt.Printf("I am disconnecting\n")
+		defer conn.Close()
+		gDisconnectedFromServerChannel <- serverIP
+	}()
+	gConnectedToServerChannel <- serverIP
 
 	bytesReceivedChannel := make(chan []byte)
-	go readMessages(conn, bytesReceivedChannel)
+	readErrorsChannel := make(chan error)
+	go readMessages(conn, bytesReceivedChannel, readErrorsChannel)
 
 	for {
 		select {
@@ -102,7 +127,7 @@ func handleOutboundConnection(serverIP string, shouldDisconnectChannel chan bool
 			// We have received a message:
 			if err != nil {
 				fmt.Printf("TCP server receive error: %s", err)
-				conn.Close()
+				return
 			}
 			var messageReceived Message
 			json.Unmarshal(bytesReceived, &messageReceived)
@@ -121,6 +146,9 @@ func handleOutboundConnection(serverIP string, shouldDisconnectChannel chan bool
 			break
 
 		case <-shouldDisconnectChannel:
+			return
+
+		case <-readErrorsChannel:
 			return
 		}
 
@@ -157,7 +185,8 @@ func handleIncomingConnection(conn net.Conn, shouldDisconnectChannel chan bool) 
 	defer conn.Close()
 
 	bytesReceivedChannel := make(chan []byte)
-	go readMessages(conn, bytesReceivedChannel)
+	readErrorsChannel := make(chan error)
+	go readMessages(conn, bytesReceivedChannel, readErrorsChannel)
 
 	for {
 		select {
@@ -191,20 +220,22 @@ func handleIncomingConnection(conn net.Conn, shouldDisconnectChannel chan bool) 
 			serializedMessage, _ := json.Marshal(messageToSend)
 			fmt.Fprintf(conn, string(serializedMessage)+"\n\000")
 			break
+
 		case <-shouldDisconnectChannel:
+			return
+
+		case <-readErrorsChannel:
 			return
 		}
 
 	}
 }
 
-func readMessages(conn net.Conn, receiveChannel chan []byte) {
-	defer conn.Close()
-
+func readMessages(conn net.Conn, receiveChannel chan []byte, errorChannel chan error) {
 	for {
 		bytesReceived, err := bufio.NewReader(conn).ReadBytes('\n')
 		if err != nil {
-			fmt.Printf("TCP server receive error: %s", err)
+			errorChannel <- err
 			return
 		}
 		receiveChannel <- bytesReceived
