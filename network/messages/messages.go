@@ -7,6 +7,7 @@ import (
 	"net"
 
 	"../peers"
+	"../receivers"
 )
 
 // Enums
@@ -33,7 +34,6 @@ var gServerIPChannel = make(chan string)
 var gSendForwardChannel = make(chan Message, 100)
 var gSendBackwardChannel = make(chan Message, 100)
 
-var gBroadcastReceivedChannel = make(chan []byte, 100)
 var gPingAckReceivedChannel = make(chan Message, 100)
 
 func ConnectTo(IP string) {
@@ -55,7 +55,7 @@ func SendMessage(purpose string, data []byte) {
 }
 
 func Receive(purpose string) []byte {
-	return <-gBroadcastReceivedChannel
+	return <-receivers.GetChannel(purpose)
 }
 
 func Start() {
@@ -158,7 +158,6 @@ func handleIncomingConnection(conn net.Conn, shouldDisconnectChannel chan bool) 
 
 	bytesReceivedChannel := make(chan []byte)
 	go readMessages(conn, bytesReceivedChannel)
-	fmt.Printf("got connection")
 
 	for {
 		select {
@@ -173,7 +172,7 @@ func handleIncomingConnection(conn net.Conn, shouldDisconnectChannel chan bool) 
 
 				if messageReceived.SenderIP != localIP {
 					// We should forward the message to next node
-					gBroadcastReceivedChannel <- messageReceived.Data
+					receivers.GetChannel(messageReceived.Purpose) <- messageReceived.Data
 					gSendForwardChannel <- messageReceived
 				}
 
