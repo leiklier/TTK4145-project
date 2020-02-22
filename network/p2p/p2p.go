@@ -100,3 +100,4 @@ func Receive() (Message, func(response Message)) {
 		receiver.ResponseChannel <- response
 	}
 }
+
