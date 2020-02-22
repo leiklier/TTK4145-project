@@ -4,13 +4,14 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"strconv"
 	"syscall"
 
 	"../peers"
 )
 
-const gPORT = "1567"
-const gbroadcastIP = "255.255.255.255"
+const gPORT = 1567
+const gBroadcastIP = "255.255.255.255"
 
 var HEAD = true // Has to be changed
 
@@ -23,7 +24,7 @@ func Listenjoin() {
 	}
 	buffer := make([]byte, 1024) // What happens if packet > buffer
 
-	ln, err := net.ListenPacket("udp", "255.255.255.255:"+gPORT)
+	ln, err := net.ListenPacket("udp", "255.255.255.255:"+strconv.Itoa(gPORT))
 
 	if err != nil {
 		fmt.Println("Unable to listen to udp broadcast")
@@ -46,12 +47,12 @@ func Listenjoin() {
 	}
 }
 
-// send msg to 255, if head du får svar
+// send msg to 255
 func sendJoinMSG() {
 	// Connect til
 	gselfIP := peers.GetRelativeTo(peers.Self, 0)
-	conn := dialBroadcastUDP(gPort)
-	addr, _ := net.ResolveUDPAddr("udp4", fmt.Sprintf("%s:%d", _broadcastIP, port))
+	conn := dialBroadcastUDP(gPORT)
+	addr, _ := net.ResolveUDPAddr("udp4", fmt.Sprintf("%s:%d", gBroadcastIP, gPORT))
 	conn.WriteTo([]byte(gselfIP), addr)
 }
 
