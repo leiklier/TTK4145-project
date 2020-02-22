@@ -119,11 +119,9 @@ func listenCallsIn() {
 
 func listenCallsOut() {
 	for{
-		 states <-store.SendElevState:
-			msg := messages.Message{CallList, messages.Broadcast, states}
-			messages.Send(msg)
-			break
-		}
+		states := <-store.SendElevState
+		msg := messages.Message{CallList, messages.Broadcast, states}
+		messages.Send(msg)
 	}
 }
 
