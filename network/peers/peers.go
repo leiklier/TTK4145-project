@@ -59,6 +59,7 @@ func GetAll() []string {
 	return peers
 }
 
+// GetRelativeTo Returns string of ip addr
 func GetRelativeTo(role int, offset int) string {
 	initialize()
 	peers := GetAll()
