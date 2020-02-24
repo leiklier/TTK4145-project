@@ -60,18 +60,18 @@ var gAllElevatorStates = make([]ElevatorState, numElevators) // TODO fiks dynami
 var localElevator = initElevatorState()
 var mutex = &sync.Mutex{}
 
-var recieveElevState = make(chan ElevatorState)
-var sendElevState = make(chan ElevatorState)
+var RecieveElevState = make(chan ElevatorState)
+var SendElevState = make(chan ElevatorState)
 
 func getOtherElevatorStates() {
 	for {
-		change := <-recieveElevState
+		change := <-RecieveElevState
 		updateElevatorStates(change)
 	}
 }
 func sendOwnState() {
 	for {
-		sendElevState <- localElevator
+		SendElevState <- localElevator
 	}
 }
 

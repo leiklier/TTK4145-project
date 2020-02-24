@@ -1,62 +1,65 @@
 package ring
 
 import (
-	"bytes"
-	"encoding/gob"
+	"encoding/json"
 	"fmt"
 	"net"
 	"os"
+	"strings"
 	"syscall"
 	"time"
-	"bufio"
-	"encoding/json"
 
 	"../../store"
 	"../messages"
 	"../peers"
 )
 
-// type DataType struct {
-// 	type
-// 	data []byte
-// }
-
-// type Message struct {
-// 	Type Broadcast Ping PingAck
-// 	Purpose: Custom string
-// 	Data
-// }
-
-// messages.ReceiveBroadcast("Custom string")
-// messages.ReceivePingAck
-
 const ( // Ugh
 	NodeChange = "NodeChange"
 	CallList   = "CallList"
-	Maintain   = "Maintain"
+	Maintain   = "Maintain" //ping ish?
 )
 
 const gBCASTPORT = 6971
-const gRINGPORT = 6972 
+const gRINGPORT = 6972
 const gBroadcastIP = "255.255.255.255"
-
-var gHEAD = false // Has to be changed
-const gConnectAttempts = 5
+const gConnectAttempts = 1
 const gBCASTPING = "RING EXISTS"
 const gTIMEOUT = 2
-const _timeoutMs = 3500
+const gJOINMESSAGE = "JOIN"
 
 // Initializes the network if it's present. Establishes a new network if not
 func Init() {
-	if  !sendJoinMSG() {
-		go listenjoin()
-	}
-	go maintainRing()
+
 	go listenCallsIn()
 	go listenCallsOut()
-	reader := bufio.NewReader(os.Stdin)
-	reader.ReadString('\n')
+	go maintainRing()
+	go neighbourWatcher()
+	go handleRingChange()
 
+	sendJoinMSG()
+	listenjoin()
+
+}
+
+// send msg to 255
+func sendJoinMSG() bool { //TODO: make goroutine
+	// Connect til
+	connWrite := dialBroadcastUDP(gBCASTPORT)
+	defer connWrite.Close()
+
+	for i := 0; i < gConnectAttempts; i++ {
+
+		selfIP := peers.GetRelativeTo(peers.Self, 0)
+		addr, _ := net.ResolveUDPAddr("udp4", fmt.Sprintf("%s:%d", gBroadcastIP, gBCASTPORT))
+		connWrite.WriteTo([]byte(gJOINMESSAGE+":"+selfIP), addr)
+		time.Sleep(gTIMEOUT * time.Second)
+		fmt.Println("Sent")
+		if peers.GetRelativeTo(peers.Head, 0) != peers.GetRelativeTo(peers.Self, 0) {
+			return true
+		}
+	}
+	return false
 }
 
 // Only runs if you are HEAD, listen for new machines broadcasting
@@ -64,115 +67,93 @@ func Init() {
 // known machines. That list is propagted trpough the ring to update the ring
 func listenjoin() {
 
-	fmt.Println("Listening for join msgs")
-
-	var msg string
+	buffer := make([]byte, 100)
 	connRead := dialBroadcastUDP(gBCASTPORT)
-	connWrite := dialBroadcastUDP(gRINGPORT)
-	read_chn := make(chan string)
-	recivedJoinMsg := false
 
 	defer connRead.Close()
-	defer connWrite.Close()
-
 
 	for {
-		time.Sleep(gTIMEOUT*time.Second)
-		go readWithTimeout(connRead,read_chn)
+		if peers.GetRelativeTo(peers.Head, 0) == peers.GetRelativeTo(peers.Self, 0) {
+			n, _, _ := connRead.ReadFrom(buffer[0:])
+			msg := string(buffer[:n])
+			splittedMsg := strings.SplitN(msg, ":", 2)
 
-		select {
-		case msg = <-read_chn:
-			recivedJoinMsg = true
-			break
-		case <-time.After(_timeoutMs * time.Millisecond):
-			break
-			}		
-		if recivedJoinMsg {
-			addrWrite, err := net.ResolveUDPAddr("udp4", fmt.Sprintf("%s:%d", gBroadcastIP, gRINGPORT))
-			connWrite.WriteTo([]byte(gBCASTPING), addrWrite)
-			nodes,_ := json.Marshal(peers.GetAll())
-			messages.SendMessage(NodeChange, nodes)
-			peers.AddTail(msg)
-			if peers.GetRelativeTo(peers.Tail,-1) == peers.GetRelativeTo(peers.Self, 0){
-				messages.ConnectTo(peers.GetRelativeTo(peers.Self, 1))
-			}
-			if err != nil {
-				fmt.Println("Failed to broadcast")
-				fmt.Println(err)
+			if splittedMsg[0] == gJOINMESSAGE {
+				fmt.Println("New node on the network")
+				nodes, _ := json.Marshal(peers.GetAll())
+				peers.AddTail(splittedMsg[1])
+				if peers.GetRelativeTo(peers.Tail, -1) == peers.GetRelativeTo(peers.Self, 0) {
+					messages.ConnectTo(peers.GetRelativeTo(peers.Self, 1))
+				} else {
+					messages.SendMessage(NodeChange, nodes)
+				}
 			}
 		}
 	}
 }
 
-func maintainRing() {
+func handleRingChange() {
 	var nodesList []string
+	fmt.Println("Updating ring...")
+	fmt.Println(peers.GetAll())
+	nodes := messages.Receive(NodeChange)
+	json.Unmarshal(nodes, &nodesList)
+	peers.Set(nodesList)
+	nextNode := peers.GetRelativeTo(peers.Self, 1)
+	messages.ConnectTo(nextNode)
+	messages.SendMessage(NodeChange, nodes)
+}
+
+func maintainRing() { // kind of ping??
+	// var nodesList []string
 	messages.Start()
 	for {
-		fmt.Println("Maintaining ring...")
-		fmt.Println(peers.GetAll())
-		nodes := messages.Receive(NodeChange)
-		json.Unmarshal(nodes, &nodesList)
-		//fmt.Println(nodesList)
-		peers.Set(nodesList)
-		messages.SendMessage(Maintain, nodes)
+		time.Sleep(gTIMEOUT * time.Second)
+		// fmt.Println("Maintaining ring...")
+		if peers.GetRelativeTo(peers.Head, 0) == peers.GetRelativeTo(peers.Self, 0) {
+			messages.SendMessage(Maintain, []byte("Her kan vi sende noe lurt\000"))
+		} else {
+			nodes := messages.Receive(Maintain)
+			fmt.Println(string(nodes))
+			messages.SendMessage(Maintain, nodes)
+		}
 	}
+}
+
+// Detects if the node infront of you disconnects, alerts rest of ring
+// That node becomes the master
+func neighbourWatcher() {
+	missingIP := messages.ServerDisconnected()
+	peers.Remove(missingIP)
+	peers.BecomeHead()
+	nextNode := peers.GetRelativeTo(peers.Self, 1)
+	messages.ConnectTo(nextNode)
+	nodeList := peers.GetAll()
+	nodes, _ := json.Marshal(nodeList)
+	messages.SendMessage(NodeChange, nodes)
 }
 
 func listenCallsIn() {
 	for {
 		msg := messages.Receive(CallList)
 		fmt.Println(string(msg))
-		/*state := store.ElevatorState{}
-    	gob.NewDecoder(msg).Decode(&state)
-
+		state := store.ElevatorState{}
+		json.Unmarshal(msg, &state)
 		store.RecieveElevState <- state
-		*/
 	}
 }
 
 func listenCallsOut() {
 	for {
 		states := <-store.SendElevState
-		buf := &bytes.Buffer{}
-		gob.NewEncoder(buf).Encode(states)
-		bs := buf.Bytes()
-		messages.SendMessage(CallList,bs)
+		statesBytes, _ := json.Marshal(&states)
+		messages.SendMessage(CallList, statesBytes)
 	}
 }
 
-// send msg to 255
-func sendJoinMSG() bool{
-	// Connect til
-	var msg string
-	connWrite := dialBroadcastUDP(gBCASTPORT)
-	connRead := dialBroadcastUDP(gRINGPORT)
-	defer connRead.Close()
-	defer connWrite.Close()
-	read_chn := make(chan string)
-
-
-	for i := 0; i < gConnectAttempts; i++ {
-		time.Sleep(gTIMEOUT*time.Second)
-
-		selfIP := peers.GetRelativeTo(peers.Self, 0)
-		addr, _ := net.ResolveUDPAddr("udp4", fmt.Sprintf("%s:%d", gBroadcastIP, gBCASTPORT))
-		connWrite.WriteTo([]byte(selfIP), addr)
-		
-		go readWithTimeout(connRead,read_chn)
-		select {
-			case msg = <-read_chn:
-				break
-			case <-time.After(_timeoutMs * time.Millisecond):
-				fmt.Println("TImed out")
-				break
-		}		
-		fmt.Printf("%s -- \n", msg)
-		if msg == gBCASTPING {
-			return true
-		}
-	}
-	return false
-}
+////////////////////////////////////////////////////
+// Helper functions
+////////////////////////////////////////////////////
 
 // Tar inn port, returnerer en udpconn til porten.
 func dialBroadcastUDP(port int) net.PacketConn {
@@ -186,11 +167,4 @@ func dialBroadcastUDP(port int) net.PacketConn {
 	f.Close()
 
 	return conn
-}
-
-
-func readWithTimeout(conn net.PacketConn, msg chan<- string) {
-	buffer := make([]byte, 100) 
-	n,_,_ := conn.ReadFrom(buffer[0:])
-	msg <- string(buffer[:n])
 }

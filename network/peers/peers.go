@@ -50,6 +50,14 @@ func Set(IPs []string) {
 	controlChannel <- controlSignal
 }
 
+func BecomeHead() {
+	initialize()
+	controlSignal := ControlSignal{
+		Command: Head,
+	}
+	controlChannel <- controlSignal
+}
+
 // Remove deletes the peer with a certain IP
 func Remove(IP string) {
 	initialize()
@@ -138,6 +146,7 @@ func initialize() {
 	go peersServer()
 }
 
+// Add some mutex?
 func peersServer() {
 	peers := make([]string, 1)
 	peers[0] = localIP
@@ -165,6 +174,24 @@ func peersServer() {
 				Event: Replaced,
 			}
 			changeChannel <- changeEvent
+			break
+
+		case Head:
+			var rotation int
+			var val string
+			var newPeers []string
+
+			for rotation, val = range peers {
+				if val == localIP {
+					break
+				}
+			}
+			size := len(peers)
+			for i := 0; i < rotation; i++ {
+				newPeers = peers[1:size]
+				newPeers = append(newPeers, peers[0])
+				peers = newPeers
+			}
 			break
 
 		case Delete:
