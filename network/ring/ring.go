@@ -23,7 +23,7 @@ const ( // Ugh
 const gBCASTPORT = 6971
 const gRINGPORT = 6972
 const gBroadcastIP = "255.255.255.255"
-const gConnectAttempts = 1
+const gConnectAttempts = 5
 const gBCASTPING = "RING EXISTS"
 const gTIMEOUT = 2
 const gJOINMESSAGE = "JOIN"
@@ -37,57 +37,54 @@ func Init() {
 	go neighbourWatcher()
 	go handleRingChange()
 
-	sendJoinMSG()
-	listenjoin()
+	handleJoin()
 
 }
 
 // send msg to 255
-func sendJoinMSG() bool { //TODO: make goroutine
+func sendJoinMSG() { //TODO: make goroutine
 	// Connect til
 	connWrite := dialBroadcastUDP(gBCASTPORT)
 	defer connWrite.Close()
 
 	for i := 0; i < gConnectAttempts; i++ {
-
 		selfIP := peers.GetRelativeTo(peers.Self, 0)
 		addr, _ := net.ResolveUDPAddr("udp4", fmt.Sprintf("%s:%d", gBroadcastIP, gBCASTPORT))
 		connWrite.WriteTo([]byte(gJOINMESSAGE+":"+selfIP), addr)
 		time.Sleep(gTIMEOUT * time.Second)
 		fmt.Println("Sent")
 		if peers.GetRelativeTo(peers.Head, 0) != peers.GetRelativeTo(peers.Self, 0) {
-			return true
+			return
 		}
 	}
-	return false
 }
 
 // Only runs if you are HEAD, listen for new machines broadcasting
 // on the network using UDP. The new machine is added to the list of
 // known machines. That list is propagted trpough the ring to update the ring
-func listenjoin() {
+func handleJoin() {
 
-	buffer := make([]byte, 100)
-	connRead := dialBroadcastUDP(gBCASTPORT)
-
-	defer connRead.Close()
-
+	readChn := make(chan string)
+	go channelRead(readChn)
 	for {
 		if peers.GetRelativeTo(peers.Head, 0) == peers.GetRelativeTo(peers.Self, 0) {
-			n, _, _ := connRead.ReadFrom(buffer[0:])
-			msg := string(buffer[:n])
-			splittedMsg := strings.SplitN(msg, ":", 2)
-
-			if splittedMsg[0] == gJOINMESSAGE {
+			select {
+			case tail := <-readChn:
 				fmt.Println("New node on the network")
+				peers.AddTail(tail)
 				nodes, _ := json.Marshal(peers.GetAll())
-				peers.AddTail(splittedMsg[1])
-				if peers.GetRelativeTo(peers.Tail, -1) == peers.GetRelativeTo(peers.Self, 0) {
+				if peers.GetRelativeTo(peers.Self, 1) == peers.GetRelativeTo(peers.Tail, 0) {
 					messages.ConnectTo(peers.GetRelativeTo(peers.Self, 1))
-				} else {
-					messages.SendMessage(NodeChange, nodes)
 				}
+				messages.SendMessage(NodeChange, nodes)
+				break
+			case <-time.After(10 * time.Second):
+				if peers.GetRelativeTo(peers.Head, 0) == peers.GetRelativeTo(peers.Tail, 0) {
+					sendJoinMSG()
+				}
+				break
 			}
+
 		}
 	}
 }
@@ -95,27 +92,26 @@ func listenjoin() {
 func handleRingChange() {
 	var nodesList []string
 	fmt.Println("Updating ring...")
-	fmt.Println(peers.GetAll())
-	nodes := messages.Receive(NodeChange)
-	json.Unmarshal(nodes, &nodesList)
-	peers.Set(nodesList)
-	nextNode := peers.GetRelativeTo(peers.Self, 1)
-	messages.ConnectTo(nextNode)
-	messages.SendMessage(NodeChange, nodes)
+	for {
+
+		fmt.Println(peers.GetAll())
+		nodes := messages.Receive(NodeChange)
+		json.Unmarshal(nodes, &nodesList)
+		peers.Set(nodesList)
+		nextNode := peers.GetRelativeTo(peers.Self, 1)
+		messages.ConnectTo(nextNode)
+	}
 }
 
 func maintainRing() { // kind of ping??
-	// var nodesList []string
 	messages.Start()
 	for {
 		time.Sleep(gTIMEOUT * time.Second)
-		// fmt.Println("Maintaining ring...")
 		if peers.GetRelativeTo(peers.Head, 0) == peers.GetRelativeTo(peers.Self, 0) {
 			messages.SendMessage(Maintain, []byte("Her kan vi sende noe lurt\000"))
 		} else {
 			nodes := messages.Receive(Maintain)
 			fmt.Println(string(nodes))
-			messages.SendMessage(Maintain, nodes)
 		}
 	}
 }
@@ -123,14 +119,18 @@ func maintainRing() { // kind of ping??
 // Detects if the node infront of you disconnects, alerts rest of ring
 // That node becomes the master
 func neighbourWatcher() {
-	missingIP := messages.ServerDisconnected()
-	peers.Remove(missingIP)
-	peers.BecomeHead()
-	nextNode := peers.GetRelativeTo(peers.Self, 1)
-	messages.ConnectTo(nextNode)
-	nodeList := peers.GetAll()
-	nodes, _ := json.Marshal(nodeList)
-	messages.SendMessage(NodeChange, nodes)
+	for {
+		time.Sleep(gTIMEOUT * time.Second)
+
+		missingIP := messages.ServerDisconnected()
+		peers.Remove(missingIP)
+		peers.BecomeHead()
+		nextNode := peers.GetRelativeTo(peers.Self, 1)
+		messages.ConnectTo(nextNode)
+		nodeList := peers.GetAll()
+		nodes, _ := json.Marshal(nodeList)
+		messages.SendMessage(NodeChange, nodes)
+	}
 }
 
 func listenCallsIn() {
@@ -167,4 +167,20 @@ func dialBroadcastUDP(port int) net.PacketConn {
 	f.Close()
 
 	return conn
+}
+
+func channelRead(readChn chan<- string) {
+	buffer := make([]byte, 100)
+	connRead := dialBroadcastUDP(gBCASTPORT)
+
+	defer connRead.Close()
+	for {
+		n, _, _ := connRead.ReadFrom(buffer[0:])
+		msg := string(buffer[:n])
+		splittedMsg := strings.SplitN(msg, ":", 2)
+		if splittedMsg[0] == gJOINMESSAGE && splittedMsg[1] != peers.GetRelativeTo(peers.Self, 0) {
+			readChn <- splittedMsg[1]
+		}
+	}
+
 }
