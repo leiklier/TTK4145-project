@@ -30,10 +30,9 @@ const gJOINMESSAGE = "JOIN"
 
 // Initializes the network if it's present. Establishes a new network if not
 func Init() {
-
+	messages.Start()
 	go listenCallsIn()
 	go listenCallsOut()
-	go maintainRing()
 	go neighbourWatcher()
 	go handleRingChange()
 
@@ -48,10 +47,10 @@ func sendJoinMSG() { //TODO: make goroutine
 	defer connWrite.Close()
 
 	for i := 0; i < gConnectAttempts; i++ {
+		time.Sleep(gTIMEOUT * time.Second)
 		selfIP := peers.GetRelativeTo(peers.Self, 0)
 		addr, _ := net.ResolveUDPAddr("udp4", fmt.Sprintf("%s:%d", gBroadcastIP, gBCASTPORT))
 		connWrite.WriteTo([]byte(gJOINMESSAGE+":"+selfIP), addr)
-		time.Sleep(gTIMEOUT * time.Second)
 		fmt.Println("Sent")
 		if peers.GetRelativeTo(peers.Head, 0) != peers.GetRelativeTo(peers.Self, 0) {
 			return
@@ -103,19 +102,6 @@ func handleRingChange() {
 	}
 }
 
-func maintainRing() { // kind of ping??
-	messages.Start()
-	for {
-		time.Sleep(gTIMEOUT * time.Second)
-		if peers.GetRelativeTo(peers.Head, 0) == peers.GetRelativeTo(peers.Self, 0) {
-			messages.SendMessage(Maintain, []byte("Her kan vi sende noe lurt\000"))
-		} else {
-			nodes := messages.Receive(Maintain)
-			fmt.Println(string(nodes))
-		}
-	}
-}
-
 // Detects if the node infront of you disconnects, alerts rest of ring
 // That node becomes the master
 func neighbourWatcher() {
@@ -123,6 +109,7 @@ func neighbourWatcher() {
 		time.Sleep(gTIMEOUT * time.Second)
 
 		missingIP := messages.ServerDisconnected()
+		fmt.Println("Disconnect : %s", missingIP)
 		peers.Remove(missingIP)
 		peers.BecomeHead()
 		nextNode := peers.GetRelativeTo(peers.Self, 1)
