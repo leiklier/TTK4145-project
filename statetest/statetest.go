@@ -18,33 +18,7 @@ var hc3 = [numFloors]store.HallCall{store.HC_up, store.HC_down, store.HC_none, s
 
 var cc = [numFloors]bool{false, false, false, false}
 
-// var elev1 = store.ElevatorState{"1", 0, store.DIR_idle, hc1, cc, false, true}
-// var elev2 = store.ElevatorState{"2", 1, store.DIR_idle, hc2, cc, false, true}
-// var elev3 = store.ElevatorState{"3", 2, store.DIR_idle, hc3, cc, false, true}
-
 func main() {
-	/*store.GAllElevatorStates[0] = elev1
-	store.GAllElevatorStates[1] = elev2
-	store.GAllElevatorStates[2] = elev3
-
-	fmt.Println("Elevator 1 is at floor", elev1.Current_floor, "going", dirToText(elev1.GDirection))
-	fmt.Println("Elevator 2 is at floor", elev2.Current_floor, "going", dirToText(elev2.GDirection))
-	fmt.Println("Elevator 3 is at floor", elev3.Current_floor, "going", dirToText(elev3.GDirection))
-	fmt.Println()
-
-	var HC store.HallCall = store.HC_down
-	HCFloor := 2
-
-	fmt.Println("Hall call is at floor", HCFloor, "going", dirToText(store.HCDirToElevDir(HC)))
-	iperino := store.MostSuitedElevator(HC, HCFloor)
-	fmt.Println("Most suited elevator is elevator nr:", iperino)
-
-	readFile, err := os.Open("testscenario.txt")
-
-	if err != nil {
-		log.Fatalf("failed to open file: %s", err)
-	}
-	*/
 	f := getLines("testscenario.txt")
 	testAmount := (len(f)-1)/5
 	fmt.Println("testamount is",testAmount,"\n")
