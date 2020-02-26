@@ -19,13 +19,36 @@ var hc3 = [numFloors]store.HallCall{store.HC_up, store.HC_down, store.HC_none, s
 var cc = [numFloors]bool{false, false, false, false}
 
 func main() {
+	var allmode bool
+	if len(os.Args) != 2 {
+		allmode = false
+   }else {
+	   allmode = true
+   }
+   if allmode {
+		argsWithoutProg := os.Args[1:]
+		if argsWithoutProg[0] == "all" {
+			allmode = true
+		}else {
+			allmode = false
+		}
+   }
+	
+	
+
+
 	f := getLines("testscenario.txt")
 	testAmount := (len(f)-1)/5
-	fmt.Println("testamount is",testAmount,"\n")
+	fmt.Println("The number of tests are:",testAmount,"\n")
+	
 	for i:=0; i<testAmount;i++{
 		doTest(f,i)
+		if !allmode {
+			buf := bufio.NewReader(os.Stdin)
+			fmt.Println("Press enter to continue ...")
+			_,_ = buf.ReadBytes('\n')
+		}
 	}
-	
 }
 func dirToText(dir store.Direction) string {
 	switch dir {
