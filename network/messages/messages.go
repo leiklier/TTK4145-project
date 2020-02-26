@@ -28,17 +28,16 @@ type Message struct {
 
 // Variables
 var gIsInitialized = false
-var gPort = 6969
+var gPort = 6970
 
 // Channels
 var gServerIPChannel = make(chan string)
 var gConnectedToServerChannel = make(chan string)
 var gDisconnectedFromServerChannel = make(chan string)
 
+// TODO: Make these channel names more meaningful
 var gSendForwardChannel = make(chan Message, 100)
 var gSendBackwardChannel = make(chan Message, 100)
-
-var gPingAckReceivedChannel = make(chan Message, 100)
 
 func ConnectTo(IP string) error {
 	initialize()
@@ -115,40 +114,46 @@ func handleOutboundConnection(serverIP string, shouldDisconnectChannel chan bool
 		defer conn.Close()
 		gDisconnectedFromServerChannel <- serverIP
 	}()
+
 	gConnectedToServerChannel <- serverIP
 
-	bytesReceivedChannel := make(chan []byte)
-	readErrorsChannel := make(chan error)
-	go readMessages(conn, bytesReceivedChannel, readErrorsChannel)
+	shouldSendPingTicker := time.NewTicker(500 * time.Millisecond)
+
+	pingAckReceivedChannel := make(chan Message, 100)
+	connErrorChannel := make(chan error)
+
+	// Read new messages from conn and send them on pingAckReceivedChannel.
+	// Errors are sent back on connErrorChannel.
+	go receiveMessages(conn, pingAckReceivedChannel, connErrorChannel)
+
+	// Send messages that are passed to gSendForwardChannel
+	// Errors are sent back on connErrorChannel.
+	go sendMessages(conn, gSendForwardChannel, connErrorChannel)
 
 	for {
 		select {
-		case bytesReceived := <-bytesReceivedChannel:
-			// We have received a message:
-			if err != nil {
-				fmt.Printf("TCP server receive error: %s", err)
+		case <-shouldSendPingTicker.C:
+			// Send a ping message at regular intervals to check that
+			// the connection is still alive
+			messageToSend := Message{
+				Type: Ping,
+			}
+			gSendForwardChannel <- messageToSend
+			select {
+			case <-pingAckReceivedChannel:
+				// We received a PingAck, so everything works fine
+				break
+			case <-time.After(1 * time.Second):
+				// Cannot retrieve PingAck, so the connection is
+				// not working properly
 				return
 			}
-			var messageReceived Message
-			json.Unmarshal(bytesReceived, &messageReceived)
-
-			if messageReceived.Type != PingAck {
-				break
-			}
-
-			gPingAckReceivedChannel <- messageReceived
-			break
-
-		case messageToSend := <-gSendForwardChannel:
-			// We want to transmit a message forwards:
-			serializedMessage, _ := json.Marshal(messageToSend)
-			fmt.Fprintf(conn, string(serializedMessage)+"\n\000")
 			break
 
 		case <-shouldDisconnectChannel:
 			return
 
-		case <-readErrorsChannel:
+		case <-connErrorChannel:
 			return
 		}
 
@@ -184,16 +189,21 @@ func server() {
 func handleIncomingConnection(conn net.Conn, shouldDisconnectChannel chan bool) {
 	defer conn.Close()
 
-	bytesReceivedChannel := make(chan []byte)
-	readErrorsChannel := make(chan error)
-	go readMessages(conn, bytesReceivedChannel, readErrorsChannel)
+	messageReceivedChannel := make(chan Message, 100)
+	connErrorChannel := make(chan error)
+
+	// Read new messages from conn and send them on pingAckReceivedChannel.
+	// Errors are sent back on connErrorChannel.
+	go receiveMessages(conn, messageReceivedChannel, connErrorChannel)
+
+	// Send messages that are passed to gSendForwardChannel
+	// Errors are sent back on connErrorChannel.
+	go sendMessages(conn, gSendBackwardChannel, connErrorChannel)
 
 	for {
 		select {
 		// We have received a message
-		case bytesReceived := <-bytesReceivedChannel:
-			var messageReceived Message
-			json.Unmarshal(bytesReceived, &messageReceived)
+		case messageReceived := <-messageReceivedChannel:
 
 			switch messageReceived.Type {
 			case Broadcast:
@@ -215,30 +225,45 @@ func handleIncomingConnection(conn net.Conn, shouldDisconnectChannel chan bool) 
 			}
 			break
 
-		// We want to transmit a message backwards:
-		case messageToSend := <-gSendBackwardChannel:
-			serializedMessage, _ := json.Marshal(messageToSend)
-			fmt.Fprintf(conn, string(serializedMessage)+"\n\000")
-			break
-
 		case <-shouldDisconnectChannel:
 			return
 
-		case <-readErrorsChannel:
+		case <-connErrorChannel:
 			return
 		}
 
 	}
 }
 
-func readMessages(conn net.Conn, receiveChannel chan []byte, errorChannel chan error) {
+func receiveMessages(conn net.Conn, receiveChannel chan Message, errorChannel chan error) {
 	for {
 		bytesReceived, err := bufio.NewReader(conn).ReadBytes('\n')
 		if err != nil {
 			errorChannel <- err
 			return
 		}
-		receiveChannel <- bytesReceived
 
+		var messageReceived Message
+		json.Unmarshal(bytesReceived, &messageReceived)
+
+		receiveChannel <- messageReceived
+
+	}
+}
+
+func sendMessages(conn net.Conn, messageToSendChannel chan Message, errorChannel chan error) {
+	for {
+		messageToSend := <-messageToSendChannel
+		serializedMessage, _ := json.Marshal(messageToSend)
+
+		_, err := fmt.Fprintf(conn, string(serializedMessage)+"\n\000")
+
+		if err != nil {
+			// We need to retransmit the message, to pass it back to the channel.
+			// However, the connection is not working so disconnect.
+			messageToSendChannel <- messageToSend
+			errorChannel <- err
+			return
+		}
 	}
 }
