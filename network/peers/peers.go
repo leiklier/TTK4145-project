@@ -146,7 +146,6 @@ func initialize() {
 	go peersServer()
 }
 
-// Add some mutex?
 func peersServer() {
 	peers := make([]string, 1)
 	peers[0] = localIP
@@ -211,6 +210,27 @@ func peersServer() {
 			}
 		}
 	}
+}
+
+func IsEqualTo(peersToCompare []string) bool {
+	currentPeers := GetAll()
+
+	// If one is nil, the other must also be nil.
+	if peersToCompare == nil {
+		return false
+	}
+
+	if len(peersToCompare) != len(currentPeers) {
+		return false
+	}
+
+	for i := range peersToCompare {
+		if peersToCompare[i] != currentPeers[i] {
+			return false
+		}
+	}
+
+	return true
 }
 
 func getLocalIP() (string, error) {

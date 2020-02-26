@@ -47,11 +47,10 @@ func sendJoinMSG() { //TODO: make goroutine
 	defer connWrite.Close()
 
 	for i := 0; i < gConnectAttempts; i++ {
-		time.Sleep(gTIMEOUT * time.Second)
 		selfIP := peers.GetRelativeTo(peers.Self, 0)
 		addr, _ := net.ResolveUDPAddr("udp4", fmt.Sprintf("%s:%d", gBroadcastIP, gBCASTPORT))
 		connWrite.WriteTo([]byte(gJOINMESSAGE+":"+selfIP), addr)
-		fmt.Println("Sent")
+		time.Sleep(gTIMEOUT * time.Second)
 		if peers.GetRelativeTo(peers.Head, 0) != peers.GetRelativeTo(peers.Self, 0) {
 			return
 		}
@@ -90,15 +89,17 @@ func handleJoin() {
 
 func handleRingChange() {
 	var nodesList []string
-	fmt.Println("Updating ring...")
 	for {
 
 		fmt.Println(peers.GetAll())
 		nodes := messages.Receive(NodeChange)
 		json.Unmarshal(nodes, &nodesList)
-		peers.Set(nodesList)
-		nextNode := peers.GetRelativeTo(peers.Self, 1)
-		messages.ConnectTo(nextNode)
+		if !peers.IsEqualTo(nodesList) {
+			peers.Set(nodesList)
+			nextNode := peers.GetRelativeTo(peers.Self, 1)
+			messages.ConnectTo(nextNode)
+			messages.SendMessage(NodeChange, nodes)
+		}
 	}
 }
 
@@ -109,7 +110,7 @@ func neighbourWatcher() {
 		time.Sleep(gTIMEOUT * time.Second)
 
 		missingIP := messages.ServerDisconnected()
-		fmt.Println("Disconnect : %s", missingIP)
+		fmt.Printf("Disconnect : %s\n", missingIP)
 		peers.Remove(missingIP)
 		peers.BecomeHead()
 		nextNode := peers.GetRelativeTo(peers.Self, 1)
