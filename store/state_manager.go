@@ -264,12 +264,12 @@ func MostSuitedElevator(hc HallCall, originFloor int) string {
 			if floorDiff < currMaxDiff {
 				currMaxDiff = floorDiff
 				currCand = elev.Ip
-				fmt.Println("Kom inn i isClear")
+				//fmt.Println("Kom inn i isClear")
 			}
 		}
 		return currCand
 	} else {
-		fmt.Println("Kom inn i steg 2")
+		//fmt.Println("Kom inn i steg 2")
 
 		// Steg 2
 		currMaxFS := 0
@@ -322,6 +322,8 @@ func MostSuitedElevator(hc HallCall, originFloor int) string {
 				currentMax = elev.Ip
 			}
 		}
+		
+		
 		return currentMax
 	}
 }
