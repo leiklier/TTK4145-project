@@ -110,9 +110,11 @@ func handleOutboundConnection(serverIP string, shouldDisconnectChannel chan bool
 	}
 
 	defer func() {
-		defer fmt.Printf("I am disconnecting\n")
-		defer conn.Close()
-		gDisconnectedFromServerChannel <- serverIP
+		fmt.Printf("messages: lost connection to server with IP %s\n", serverIP)
+		conn.Close()
+		if err != nil {
+			gDisconnectedFromServerChannel <- serverIP
+		}
 	}()
 
 	gConnectedToServerChannel <- serverIP
@@ -146,6 +148,8 @@ func handleOutboundConnection(serverIP string, shouldDisconnectChannel chan bool
 			case <-time.After(1 * time.Second):
 				// Cannot retrieve PingAck, so the connection is
 				// not working properly
+
+				err = errors.New("ERR_SERVER_DISCONNECTED")
 				return
 			}
 			break
@@ -154,6 +158,7 @@ func handleOutboundConnection(serverIP string, shouldDisconnectChannel chan bool
 			return
 
 		case <-connErrorChannel:
+			err = errors.New("ERR_SERVER_DISCONNECTED")
 			return
 		}
 
