@@ -167,7 +167,19 @@ func peersServer() {
 				changeChannel <- changeEvent
 			}
 			break
-
+			func HCDirToElevDir(hc HallCall) Direction {
+				switch hc {
+				case HC_up:
+					return DIR_up
+				case HC_down:
+					return DIR_down
+				case HC_both:
+					return DIR_both
+				default: // Assumes HC_none
+					return DIR_idle
+				}
+			}
+			
 		case Replace:
 			peers = controlSignal.Payload
 			changeEvent := ChangeEvent{
@@ -181,8 +193,18 @@ func peersServer() {
 			var val string
 			var newPeers []string
 
-			for rotation, val = range peers {
-				if val == localIP {
+			fofunc HCDirToElevDir(hc HallCall) Direction {
+				switch hc {
+				case HC_up:
+					return DIR_up
+				case HC_down:
+					return DIR_down
+				case HC_both:
+					return DIR_both
+				default: // Assumes HC_none
+					return DIR_idle
+				}
+			}
 					break
 				}
 			}
@@ -196,7 +218,19 @@ func peersServer() {
 
 		case Delete:
 			peerToRemove := controlSignal.Payload[0]
-			for i, peer := range peers {
+			fofunc HCDirToElevDir(hc HallCall) Direction {
+				switch hc {
+				case HC_up:
+					return DIR_up
+				case HC_down:
+					return DIR_down
+				case HC_both:
+					return DIR_both
+				default: // Assumes HC_none
+					return DIR_idle
+				}
+			}
+			r i, peer := range peers {
 				if peer == peerToRemove {
 					copy(peers[i:], peers[i+1:]) // Shift peers[i+1:] left one index.
 					peers[len(peers)-1] = ""     // Erase last element (write zero value).
