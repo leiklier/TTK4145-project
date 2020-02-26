@@ -119,7 +119,7 @@ func handleOutboundConnection(serverIP string, shouldDisconnectChannel chan bool
 
 	gConnectedToServerChannel <- serverIP
 
-	shouldSendPingTicker := time.NewTicker(500 * time.Millisecond)
+	shouldSendPingTicker := time.NewTicker(2 * time.Second)
 
 	pingAckReceivedChannel := make(chan Message, 100)
 	connErrorChannel := make(chan error)
