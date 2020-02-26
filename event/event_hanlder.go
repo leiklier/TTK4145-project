@@ -37,13 +37,14 @@ func main() {
 	drv_floors := make(chan int)
 	drv_obstr := make(chan bool)
 	drv_stop := make(chan bool)
-	dst := make(chan store.Command)
+	dst := make(chan store.Command)	
 
 	go elevio.PollButtons(drv_buttons)
 	go elevio.PollFloorSensor(drv_floors)
 	go elevio.PollObstructionSwitch(drv_obstr)
 	go elevio.PollStopButton(drv_stop)
 	go store.GetDestination(dst)
+	// go store.getOtherElevator()
 
 	// go UpdateStore(drv_buttons, drv_floors, drv_obstr, drv_stop, dst)
 	// }

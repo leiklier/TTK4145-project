@@ -275,6 +275,8 @@ func mostSuitedElevator(hc HallCall, originFloor int) string {
 
 			hcDir := HCDirToElevDir(hc)
 
+		
+
 			var sameDir bool
 			if hcDir == elevDir {
 				sameDir = true
