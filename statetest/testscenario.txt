@@ -1,0 +1,11 @@
+ELEVATORNR/HC, FLOOR, DIRECTION, doorOpen, 
+Elev1, 0, U, false
+Elev2, 1, U, false
+Elev3, 2, U ,false
+HC, 2, U,!
+-
+Elev1, 2, U, false
+Elev2, 1, D, false
+Elev3, 2, U ,false
+HC, 3, D,!
+-

@@ -9,6 +9,7 @@ import (
 )
 
 const numElevators = 3 // OBS OBS gAllValues må håndteres ved skalering
+var GOLANGSUGER int = 3
 
 type ClearVariant int
 
@@ -37,13 +38,13 @@ const (
 )
 
 type ElevatorState struct {
-	ip            string
-	current_floor int
-	direction     Direction           // 1=up, 0=idle -1=down
-	hall_calls    [numFloors]HallCall // 0=up, -1=idle 1=down. Index is floor
-	cab_calls     [numFloors]bool     // index is floor
-	door_open     bool
-	isWorking     bool
+	Ip            string
+	Current_floor int
+	GDirection    Direction           // 1=up, 0=idle -1=down
+	Hall_calls    [numFloors]HallCall // 0=up, -1=idle 1=down. Index is floor
+	Cab_calls     [numFloors]bool     // index is floor
+	Door_open     bool
+	IsWorking     bool
 }
 
 type Command struct {
@@ -55,7 +56,7 @@ const numFloors = 4
 
 const _pollRate = 20 * time.Millisecond
 
-var gAllElevatorStates = make([]ElevatorState, numElevators) // TODO fiks dynamisk shit
+var GAllElevatorStates = make([]ElevatorState, numElevators) // TODO fiks dynamisk shit
 
 var localElevator = initElevatorState()
 var mutex = &sync.Mutex{}
@@ -78,9 +79,9 @@ func sendOwnState() {
 // Updates the list of all elevators
 func updateElevatorStates(elev ElevatorState) {
 
-	for i := 0; i < len(gAllElevatorStates); i++ {
-		if gAllElevatorStates[i].ip == elev.ip {
-			gAllElevatorStates[i] = elev
+	for i := 0; i < len(GAllElevatorStates); i++ {
+		if GAllElevatorStates[i].Ip == elev.Ip {
+			GAllElevatorStates[i] = elev
 		}
 	}
 }
@@ -89,13 +90,13 @@ func updateElevatorStates(elev ElevatorState) {
 // Event_handler makes sure that the elevator indeed is on the 1st floor on initiation.
 func initElevatorState() ElevatorState {
 	elev := ElevatorState{}
-	elev.ip = "" // Kanskje legg inn at den henter egen IP
-	elev.current_floor = 0
-	elev.direction = 0
-	elev.hall_calls = [numFloors]HallCall{HC_none, HC_none, HC_none, HC_none}
-	elev.cab_calls = [numFloors]bool{false, false, false, false}
-	elev.door_open = false
-	elev.isWorking = true // Assuming that it works... Mby add some test is possible?
+	elev.Ip = "" // Kanskje legg inn at den henter egen Ip
+	elev.Current_floor = 0
+	elev.GDirection = 0
+	elev.Hall_calls = [numFloors]HallCall{HC_none, HC_none, HC_none, HC_none}
+	elev.Cab_calls = [numFloors]bool{false, false, false, false}
+	elev.Door_open = false
+	elev.IsWorking = true // Assuming that it works... Mby add some test is possible?
 	return elev
 }
 
@@ -103,9 +104,9 @@ func UpdateFloorState(floor int) {
 	if floor <= numFloors || floor >= 0 {
 		mutex.Lock()
 		defer mutex.Unlock()
-		localElevator.current_floor = floor
-		localElevator.cab_calls[floor] = false
-		localElevator.hall_calls[floor] = HC_none
+		localElevator.Current_floor = floor
+		localElevator.Cab_calls[floor] = false
+		localElevator.Hall_calls[floor] = HC_none
 	}
 }
 
@@ -113,12 +114,12 @@ func UpdateDirectionState(direction Direction) {
 	if direction <= DIR_up || direction >= DIR_down {
 		mutex.Lock()
 		defer mutex.Unlock()
-		localElevator.direction = direction
+		localElevator.GDirection = direction
 	}
 }
 
 func UpdateCalls(floor int, btn_type elevio.ButtonType) bool {
-	if floor == localElevator.current_floor && localElevator.direction == 0 {
+	if floor == localElevator.Current_floor && localElevator.GDirection == 0 {
 		fmt.Println("Same floor")
 		return false // If elevator is standing still and at floor, dont accept
 	}
@@ -126,36 +127,36 @@ func UpdateCalls(floor int, btn_type elevio.ButtonType) bool {
 		if floor <= numFloors || floor >= 0 { // For cab calls
 			mutex.Lock()
 			defer mutex.Unlock()
-			if localElevator.cab_calls[floor] {
-				localElevator.cab_calls[floor] = false
+			if localElevator.Cab_calls[floor] {
+				localElevator.Cab_calls[floor] = false
 			} else {
-				localElevator.cab_calls[floor] = true
+				localElevator.Cab_calls[floor] = true
 			}
 		}
 	} else {
 
-		current_call := localElevator.hall_calls[floor] // For hall calls
+		current_call := localElevator.Hall_calls[floor] // For hall calls
 
 		if current_call == HC_down && btn_type == HC_up {
-			localElevator.hall_calls[floor] = HC_both
+			localElevator.Hall_calls[floor] = HC_both
 		} else if current_call == HC_up && btn_type == HC_down {
-			localElevator.hall_calls[floor] = HC_both
+			localElevator.Hall_calls[floor] = HC_both
 		} else {
-			localElevator.hall_calls[floor] = HallCall(btn_type)
+			localElevator.Hall_calls[floor] = HallCall(btn_type)
 		}
 	}
 	return true
 }
 
 func OpenDoor(door_state bool) {
-	localElevator.door_open = door_state
+	localElevator.Door_open = door_state
 
 }
 
 func GetFloorAndDir() (int, Direction) {
 	mutex.Lock()
 	defer mutex.Unlock()
-	return localElevator.current_floor, localElevator.direction
+	return localElevator.Current_floor, localElevator.GDirection
 }
 
 // This turned out to be a very stupid elevator :/
@@ -169,19 +170,19 @@ func GetDestination(dst chan<- Command) { // make cab calls have priority over h
 		time.Sleep(_pollRate)
 
 		// mutex.Lock()  // Got error with the mutex things
-		if localElevator.direction == DIR_idle && localElevator.door_open == false {
+		if localElevator.GDirection == DIR_idle && localElevator.Door_open == false {
 
 			for i := 0; i < numFloors; i++ { // Using BFSish to find first floor to go to
-				up = localElevator.current_floor + i // Keep going in that direction
-				down = localElevator.current_floor - i
+				up = localElevator.Current_floor + i // Keep going in that Direction
+				down = localElevator.Current_floor - i
 				if up <= numFloors-1 {
-					if localElevator.cab_calls[up] {
+					if localElevator.Cab_calls[up] {
 						dest = up
 						assigned = true
 					}
 				}
 				if down >= 0 && (!assigned) {
-					if localElevator.cab_calls[down] {
+					if localElevator.Cab_calls[down] {
 						dest = down
 						assigned = true
 					}
@@ -189,7 +190,7 @@ func GetDestination(dst chan<- Command) { // make cab calls have priority over h
 
 				if !assigned {
 					for i := 0; i < numFloors; i++ {
-						if localElevator.hall_calls[i] != HC_none && localElevator.current_floor != i {
+						if localElevator.Hall_calls[i] != HC_none && localElevator.Current_floor != i {
 							dest = i
 							assigned = true
 							break
@@ -200,7 +201,7 @@ func GetDestination(dst chan<- Command) { // make cab calls have priority over h
 			}
 			if assigned {
 				assigned = false
-				dst <- Command{localElevator.current_floor, dest}
+				dst <- Command{localElevator.Current_floor, dest}
 
 			}
 		}
@@ -230,15 +231,19 @@ func HCDirToElevDir(hc HallCall) Direction {
 	}
 }
 
-// Returns IP address of most suited elevator to handle hallcal
-func mostSuitedElevator(hc HallCall, originFloor int) string {
+// Returns Ip address of most suited elevator to handle hallcal
+func MostSuitedElevator(hc HallCall, originFloor int) string {
 	// Steg 1: Gi ordren til heis uten calls, som er nærmest
 	// Håndterer om det er idle, og gir til idle
 
 	isClear := true
 	var candidates []ElevatorState
-	for _, elev := range gAllElevatorStates {
-		hc := elev.hall_calls
+	for _, elev := range GAllElevatorStates {
+		hc := elev.Hall_calls
+		dir := elev.GDirection
+		if dir == DIR_idle {
+			return elev.Ip
+		}
 
 		for _, v := range hc {
 			if v != (HC_none) {
@@ -252,30 +257,30 @@ func mostSuitedElevator(hc HallCall, originFloor int) string {
 	}
 	if isClear {
 		currMaxDiff := numFloors + 1
-		// IP of closest elevator to origin floor. Default with err msg
+		// Ip of closest elevator to origin floor. Default with err msg
 		currCand := "Something went wrong"
 		for _, elev := range candidates {
-			floorDiff := Abs(elev.current_floor - originFloor)
+			floorDiff := Abs(elev.Current_floor - originFloor)
 			if floorDiff < currMaxDiff {
 				currMaxDiff = floorDiff
-				currCand = elev.ip
+				currCand = elev.Ip
+				fmt.Println("Kom inn i isClear")
 			}
 		}
 		return currCand
 	} else {
+		fmt.Println("Kom inn i steg 2")
 
 		// Steg 2
 		currMaxFS := 0
-		var currentMax string // IP of elevator with highest FSvalue
+		var currentMax string // Ip of elevator with highest FSvalue
 
-		for _, elev := range gAllElevatorStates {
+		for _, elev := range GAllElevatorStates {
 			// Extract elevator information
-			currFloor := elev.current_floor
-			elevDir := elev.direction
+			currFloor := elev.Current_floor
+			elevDir := elev.GDirection
 
 			hcDir := HCDirToElevDir(hc)
-
-		
 
 			var sameDir bool
 			if hcDir == elevDir {
@@ -314,7 +319,7 @@ func mostSuitedElevator(hc HallCall, originFloor int) string {
 			}
 			if FS > currMaxFS {
 				currMaxFS = FS
-				currentMax = elev.ip
+				currentMax = elev.Ip
 			}
 		}
 		return currentMax
