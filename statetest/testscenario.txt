@@ -1,4 +1,4 @@
-ELEVATORNR/HC, FLOOR, DIRECTION, doorOpen, 
+ELEVATORNR/HC, FLOOR, DIRECTION(U,D,I,B), doorOpen, NB: NO BLANKSPACE!
 Elev1,1,U,false
 Elev2,1,U,false
 Elev3,2,U,false
