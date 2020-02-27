@@ -317,13 +317,13 @@ func MostSuitedElevator(hc HallCall, originFloor int) string {
 			} else if !goingTowards {
 				FS = 1
 			}
+			fmt.Println("FS Score of elevator", elev.Ip, "is:", FS)
 			if FS > currMaxFS {
 				currMaxFS = FS
 				currentMax = elev.Ip
 			}
 		}
-		
-		
+
 		return currentMax
 	}
 }

@@ -5,11 +5,12 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"strings"
 	"strconv"
+	"strings"
 
 	"../store"
-) 
+)
+
 const numFloors = 4
 
 var hc1 = [numFloors]store.HallCall{store.HC_none, store.HC_up, store.HC_none, store.HC_none}
@@ -22,31 +23,28 @@ func main() {
 	var allmode bool
 	if len(os.Args) != 2 {
 		allmode = false
-   }else {
-	   allmode = true
-   }
-   if allmode {
+	} else {
+		allmode = true
+	}
+	if allmode {
 		argsWithoutProg := os.Args[1:]
 		if argsWithoutProg[0] == "all" {
 			allmode = true
-		}else {
+		} else {
 			allmode = false
 		}
-   }
-	
-	
-
+	}
 
 	f := getLines("testscenario.txt")
-	testAmount := (len(f)-1)/5
-	fmt.Println("The number of tests are:",testAmount,"\n")
-	
-	for i:=0; i<testAmount;i++{
-		doTest(f,i)
+	testAmount := (len(f) - 1) / 5
+	fmt.Println("The number of tests are:", testAmount, "\n")
+
+	for i := 0; i < testAmount; i++ {
+		doTest(f, i)
 		if !allmode {
 			buf := bufio.NewReader(os.Stdin)
 			fmt.Println("Press enter to continue ...")
-			_,_ = buf.ReadBytes('\n')
+			_, _ = buf.ReadBytes('\n')
 		}
 	}
 }
@@ -82,7 +80,8 @@ func getLines(filename string) []string {
 
 	return fileTextLines
 }
-// En test tar 5 linjer 
+
+// En test tar 5 linjer
 // TestNr er nullindeksert
 func doTest(fileTextLines []string, testNr int) {
 	var elev1 store.ElevatorState
@@ -90,33 +89,33 @@ func doTest(fileTextLines []string, testNr int) {
 	var elev3 store.ElevatorState
 	var HCFloor int
 	var hc_dir store.HallCall
-	
+
 	j := 0
 	for i, line := range fileTextLines {
-		if (i) == 0 && testNr < 1{ 
+		if (i) == 0 && testNr < 1 {
 			continue
 		}
-		if i < ((testNr*5) +1) {
+		if i < ((testNr * 5) + 1) {
 			continue
 		}
-		splitLine := strings.Split(line,",")
-	
+		splitLine := strings.Split(line, ",")
+
 		if splitLine[0] == "-" {
-			fmt.Println("Results from scenario",testNr,"are: \n")
+			fmt.Println("Results from scenario", (testNr + 1), "are: \n")
 			fmt.Println("Elevator 1 is at floor", elev1.Current_floor, "going", dirToText(elev1.GDirection))
 			fmt.Println("Elevator 2 is at floor", elev2.Current_floor, "going", dirToText(elev2.GDirection))
 			fmt.Println("Elevator 3 is at floor", elev3.Current_floor, "going", dirToText(elev3.GDirection))
 			fmt.Println()
-			fmt.Println("Hall call is at floor", HCFloor, "going", dirToText(store.HCDirToElevDir(hc_dir)),"\n")
+			fmt.Println("Hall call is at floor", HCFloor, "going", dirToText(store.HCDirToElevDir(hc_dir)), "\n")
 			iperino := store.MostSuitedElevator(hc_dir, HCFloor)
 			fmt.Println("Most suited elevator is elevator nr:", iperino)
 			fmt.Println("------------------------------------------------")
 			break
 		}
 
-		if splitLine[0] == "HC"{
+		if splitLine[0] == "HC" {
 
-			HCFloor,_ = strconv.Atoi(splitLine[1])
+			HCFloor, _ = strconv.Atoi(splitLine[1])
 			hc_dir = stringToHC(splitLine[2])
 		}
 
@@ -124,11 +123,11 @@ func doTest(fileTextLines []string, testNr int) {
 		dir := stringToDir(string(splitLine[2]))
 		hc_list := hc1
 		cc_list := cc
-		door,_ := strconv.ParseBool(splitLine[3])
-		// Assign to correct elevator 
+		door, _ := strconv.ParseBool(splitLine[3])
+		// Assign to correct elevator
 		if j == 0 {
 			elev1.Ip = "1"
-			elev1.Current_floor,_ = strconv.Atoi(floor)
+			elev1.Current_floor, _ = strconv.Atoi(floor)
 			elev1.GDirection = dir
 			elev1.Hall_calls = hc_list
 			elev1.Cab_calls = cc_list
@@ -138,7 +137,7 @@ func doTest(fileTextLines []string, testNr int) {
 		}
 		if j == 1 {
 			elev2.Ip = "2"
-			elev2.Current_floor,_ = strconv.Atoi(floor)
+			elev2.Current_floor, _ = strconv.Atoi(floor)
 			elev2.GDirection = dir
 			elev2.Hall_calls = hc_list
 			elev2.Cab_calls = cc_list
@@ -149,7 +148,7 @@ func doTest(fileTextLines []string, testNr int) {
 		}
 		if j == 2 {
 			elev3.Ip = "3"
-			elev3.Current_floor,_ = strconv.Atoi(floor)
+			elev3.Current_floor, _ = strconv.Atoi(floor)
 			elev3.GDirection = dir
 			elev3.Hall_calls = hc_list
 			elev3.Cab_calls = cc_list
@@ -157,7 +156,7 @@ func doTest(fileTextLines []string, testNr int) {
 			elev3.IsWorking = true
 			store.GAllElevatorStates[2] = elev3
 		}
-		j = j+1
+		j = j + 1
 	}
 
 }
@@ -175,6 +174,7 @@ func stringToDir(s string) store.Direction {
 		return store.DIR_both
 	}
 }
+
 // Can only take U,D,I or B
 func stringToHC(s string) store.HallCall {
 	switch s {
@@ -188,5 +188,3 @@ func stringToHC(s string) store.HallCall {
 		return store.HC_both
 	}
 }
-
-
