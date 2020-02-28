@@ -8,8 +8,7 @@ import (
 	"strings"
 	"syscall"
 	"time"
-	
-	"../../store"
+
 	"../messages"
 	"../peers"
 )
@@ -28,7 +27,6 @@ const gJOINMESSAGE = "JOIN"
 
 var isInitialized = false
 
-
 // Initializes the network if it's present. Establishes a new network if not
 func Init() {
 	if isInitialized {
@@ -38,42 +36,21 @@ func Init() {
 	messages.Start()
 	go neighbourWatcher()
 	go handleRingChange()
-	
+	sendJoinMSG() // first send join msg
 	handleJoin()
 }
+
 //////////////////////////////////////////////
 /// Exposed functions for sending and reciving
 //////////////////////////////////////////////
 
-func SendElevState(state store.ElevatorState) {
-	Init()
-	stateBytes := json.Marshal(state)
-	messages.SendMessage(StateChange, stateBytes)
+func SendMessage(purpose string, data []byte) {
+	messages.SendMessage(purpose, data)
 }
 
-func ReciveElevState() store.ElevatorState {
-	Init()
-	state := store.ElevatorState
-	stateBytes := messages.Recive(StateChange)
-	json.Unmarshal(stateBytes, &state)
-	return state
+func Recive(purpose string) []byte {
+	return messages.Receive(purpose)
 }
-
-func SendHallCall(hCall store.HallCall) {
-	Init()
-	hCallBytes := json.Marshal(hCall)
-	messages.SendMessage(Call, hCallBytes)
-}
-
-func ReciveHallCall() hCall store.HallCall {
-	Init()
-	hCall := store.HallCall
-	hCallBytes := messages.Recive(Call)
-	json.Unmarshal(hCallBytes, &hCall)
-	return hCall
-}
-
-
 
 /////////////////////////////////////////////////
 /// Functions for setting up and maintaining ring
@@ -98,15 +75,13 @@ func sendJoinMSG() {
 // Only runs if you are HEAD, listen for new machines broadcasting
 // on the network using UDP. The new machine is added to the list of
 // known machines. That list is propagted trpough the ring to update the ring
-func handleJoin() { //TODO: refactor this
+func handleJoin() {
 
 	readChn := make(chan string)
 	go blockingRead(readChn)
 	for {
 		if peers.GetRelativeTo(peers.Head, 0) == peers.GetRelativeTo(peers.Self, 0) {
-			sendJoinMSG() // first send join msg
 			select {
-
 			case tail := <-readChn:
 				peers.AddTail(tail)
 				nodes, _ := json.Marshal(peers.GetAll())
@@ -127,20 +102,6 @@ func handleJoin() { //TODO: refactor this
 	}
 }
 
-func handleRingChange() {
-	var nodesList []string
-	for {
-		nodes := messages.Receive(NodeChange)
-		json.Unmarshal(nodes, &nodesList)
-		if !peers.IsEqualTo(nodesList) {
-			peers.Set(nodesList)
-			nextNode := peers.GetRelativeTo(peers.Self, 1)
-			messages.ConnectTo(nextNode)
-			messages.SendMessage(NodeChange, nodes)
-		}
-	}
-}
-
 // Detects if the node infront of you disconnects, alerts rest of ring
 // That node becomes the master
 func neighbourWatcher() {
@@ -153,10 +114,25 @@ func neighbourWatcher() {
 		nextNode := peers.GetRelativeTo(peers.Self, 1)
 
 		messages.ConnectTo(nextNode)
-		
+
 		nodeList := peers.GetAll()
 		nodes, _ := json.Marshal(nodeList)
 		messages.SendMessage(NodeChange, nodes)
+	}
+}
+
+// Updates the ring if a node is added or removed.
+func handleRingChange() {
+	var nodesList []string
+	for {
+		nodes := messages.Receive(NodeChange)
+		json.Unmarshal(nodes, &nodesList)
+		if !peers.IsEqualTo(nodesList) {
+			peers.Set(nodesList)
+			nextNode := peers.GetRelativeTo(peers.Self, 1)
+			messages.ConnectTo(nextNode)
+			messages.SendMessage(NodeChange, nodes)
+		}
 	}
 }
 
