@@ -9,13 +9,15 @@ import (
 	"syscall"
 	"time"
 
+	"../../store"
 	"../messages"
 	"../peers"
 )
 
 const (
-	NodeChange = "NodeChange"
-	CallList   = "CallList"
+	NodeChange  = "NodeChange"
+	StateChange = "State"
+	Call        = "Call"
 )
 
 const gBCASTPORT = 6971
@@ -24,14 +26,19 @@ const gConnectAttempts = 5
 const gTIMEOUT = 2
 const gJOINMESSAGE = "JOIN"
 
+var isInitialized = false
+
 // Initializes the network if it's present. Establishes a new network if not
 func Init() {
+	if isInitialized {
+		return
+	}
+	isInitialized = true
 	messages.Start()
 	go neighbourWatcher()
 	go handleRingChange()
 
 	handleJoin()
-
 }
 
 // Uses UDP broadcast to notify any existing ring about its presens
@@ -56,9 +63,10 @@ func sendJoinMSG() {
 func handleJoin() { //TODO: refactor this
 
 	readChn := make(chan string)
-	go channelRead(readChn)
+	go blockingRead(readChn)
 	for {
 		if peers.GetRelativeTo(peers.Head, 0) == peers.GetRelativeTo(peers.Self, 0) {
+			sendJoinMSG() // first send join msg
 			select {
 			case tail := <-readChn:
 				fmt.Println("New node on the network")
@@ -110,6 +118,26 @@ func neighbourWatcher() {
 	}
 }
 
+func SendElevState(state store.ElevatorState) {
+	Init()
+	stateBytes := json.Marshal(state)
+	messages.SendMessage(StateChange, stateBytes)
+}
+
+func ReciveElevState() store.ElevatorState {
+	Init()
+	state := store.ElevatorState
+	stateBytes := messages.Recive(StateChange)
+	json.Unmarshal(stateBytes, &state)
+	return state
+}
+
+func SendHallCall(hCall store.HallCall) {
+	Init()
+	hCallBytes := json.Marshal(hCall)
+	messages.SendMessage(Call, hCallBytes)
+}
+
 ////////////////////////////////////////////////////
 // Helper functions
 ////////////////////////////////////////////////////
@@ -128,7 +156,7 @@ func dialBroadcastUDP(port int) net.PacketConn {
 	return conn
 }
 
-func channelRead(readChn chan<- string) {
+func blockingRead(readChn chan<- string) {
 	buffer := make([]byte, 100)
 	connRead := dialBroadcastUDP(gBCASTPORT)
 
