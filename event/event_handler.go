@@ -44,12 +44,7 @@ func main() {
 	go elevio.PollObstructionSwitch(drv_obstr)
 	go elevio.PollStopButton(drv_stop)
 	go store.GetDestination(dst)
-	// go store.getOtherElevator()
 
-	// go UpdateStore(drv_buttons, drv_floors, drv_obstr, drv_stop, dst)
-	// }
-
-	// func UpdateStore(drv_buttons <-chan elevio.ButtonEvent, drv_floors <-chan int, drv_obstr <-chan bool, drv_stop <-chan bool, dst <-chan store.Command) {
 
 	var d elevio.MotorDirection
 
@@ -109,7 +104,6 @@ func goToFloor(dest_floor int, current_floor int, drv_floors <-chan int) { // Pr
 					time.Sleep(3 * time.Second)
 					store.OpenDoor(false)
 					elevio.SetDoorOpenLamp(false)
-
 					return
 				}
 			}
@@ -132,7 +126,6 @@ func goToFloor(dest_floor int, current_floor int, drv_floors <-chan int) { // Pr
 					time.Sleep(3 * time.Second)
 					store.OpenDoor(false)
 					elevio.SetDoorOpenLamp(false)
-
 					return
 				}
 			}

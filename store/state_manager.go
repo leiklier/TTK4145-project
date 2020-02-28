@@ -9,8 +9,6 @@ import (
 )
 
 const numElevators = 3 // OBS OBS gAllValues må håndteres ved skalering
-var GOLANGSUGER int = 3
-
 type ClearVariant int
 
 // Clear Variants, trenger det litt senere
@@ -61,20 +59,6 @@ var GAllElevatorStates = make([]ElevatorState, numElevators) // TODO fiks dynami
 var localElevator = initElevatorState()
 var mutex = &sync.Mutex{}
 
-var RecieveElevState = make(chan ElevatorState)
-var SendElevState = make(chan ElevatorState)
-
-func getOtherElevatorStates() {
-	for {
-		change := <-RecieveElevState
-		updateElevatorStates(change)
-	}
-}
-func sendOwnState() {
-	for {
-		SendElevState <- localElevator
-	}
-}
 
 // Updates the list of all elevators
 func updateElevatorStates(elev ElevatorState) {
@@ -159,54 +143,7 @@ func GetFloorAndDir() (int, Direction) {
 	return localElevator.Current_floor, localElevator.GDirection
 }
 
-// This turned out to be a very stupid elevator :/
-func GetDestination(dst chan<- Command) { // make cab calls have priority over hall calls
-	var up int
-	var down int
-	var dest int
-	var assigned bool
 
-	for {
-		time.Sleep(_pollRate)
-
-		// mutex.Lock()  // Got error with the mutex things
-		if localElevator.GDirection == DIR_idle && localElevator.Door_open == false {
-
-			for i := 0; i < numFloors; i++ { // Using BFSish to find first floor to go to
-				up = localElevator.Current_floor + i // Keep going in that Direction
-				down = localElevator.Current_floor - i
-				if up <= numFloors-1 {
-					if localElevator.Cab_calls[up] {
-						dest = up
-						assigned = true
-					}
-				}
-				if down >= 0 && (!assigned) {
-					if localElevator.Cab_calls[down] {
-						dest = down
-						assigned = true
-					}
-				}
-
-				if !assigned {
-					for i := 0; i < numFloors; i++ {
-						if localElevator.Hall_calls[i] != HC_none && localElevator.Current_floor != i {
-							dest = i
-							assigned = true
-							break
-						}
-					}
-				}
-				// mutex.Unlock()
-			}
-			if assigned {
-				assigned = false
-				dst <- Command{localElevator.Current_floor, dest}
-
-			}
-		}
-	}
-}
 
 // GO has no built in absolute value function for integers, so must create my own
 // Abs returns the absolute value of x.
@@ -231,99 +168,3 @@ func HCDirToElevDir(hc HallCall) Direction {
 	}
 }
 
-// Returns Ip address of most suited elevator to handle hallcal
-func MostSuitedElevator(hc HallCall, originFloor int) string {
-	// Steg 1: Gi ordren til heis uten calls, som er nærmest
-	// Håndterer om det er idle, og gir til idle
-
-	isClear := true
-	var candidates []ElevatorState
-	for _, elev := range GAllElevatorStates {
-		hc := elev.Hall_calls
-		dir := elev.GDirection
-		if dir == DIR_idle {
-			return elev.Ip
-		}
-
-		for _, v := range hc {
-			if v != (HC_none) {
-				isClear = false
-				break
-			}
-		}
-		if isClear {
-			candidates = append(candidates, elev)
-		}
-	}
-	if isClear {
-		currMaxDiff := numFloors + 1
-		// Ip of closest elevator to origin floor. Default with err msg
-		currCand := "Something went wrong"
-		for _, elev := range candidates {
-			floorDiff := Abs(elev.Current_floor - originFloor)
-			if floorDiff < currMaxDiff {
-				currMaxDiff = floorDiff
-				currCand = elev.Ip
-				//fmt.Println("Kom inn i isClear")
-			}
-		}
-		return currCand
-	} else {
-		//fmt.Println("Kom inn i steg 2")
-
-		// Steg 2
-		currMaxFS := 0
-		var currentMax string // Ip of elevator with highest FSvalue
-
-		for _, elev := range GAllElevatorStates {
-			// Extract elevator information
-			currFloor := elev.Current_floor
-			elevDir := elev.GDirection
-
-			hcDir := HCDirToElevDir(hc)
-
-			var sameDir bool
-			if hcDir == elevDir {
-				sameDir = true
-			} else {
-				sameDir = false
-			}
-			floorDiff := Abs(currFloor - originFloor)
-
-			var goingTowards bool
-			if (currFloor-originFloor) > 0 && elevDir == DIR_down {
-				goingTowards = true
-			} else if (currFloor-originFloor) < 0 && elevDir == DIR_down {
-				goingTowards = false
-			} else if (currFloor-originFloor) > 0 && elevDir == DIR_up {
-				goingTowards = false
-			} else if (currFloor-originFloor) < 0 && elevDir == DIR_up {
-				goingTowards = true
-			} else if (currFloor - originFloor) == 0 {
-				// Hmmmm, this means that it is at the same floor when button is pressed.
-				// Extremely unlikely...
-			} else {
-				// Mby add default case to make sure that goingTowards has a value...
-				// If for some reason the above expressions should fail,
-				// we could just assume the worst and set goingTowards = false
-			}
-
-			var FS int
-			// Computing FS Values based upon cases:
-			if goingTowards && sameDir {
-				FS = (numFloors - 1) + 2 - floorDiff
-			} else if goingTowards && !sameDir {
-				FS = (numFloors - 1) + 1 - floorDiff
-			} else if !goingTowards {
-				FS = 1
-			}
-			fmt.Println("FS Score of elevator", elev.Ip, "is:", FS)
-			if FS > currMaxFS {
-				currMaxFS = FS
-				currentMax = elev.Ip
-			}
-		}
-
-		return currentMax
-	}
-}
