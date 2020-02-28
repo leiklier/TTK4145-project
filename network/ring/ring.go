@@ -8,7 +8,7 @@ import (
 	"strings"
 	"syscall"
 	"time"
-
+	
 	"../../store"
 	"../messages"
 	"../peers"
@@ -28,6 +28,7 @@ const gJOINMESSAGE = "JOIN"
 
 var isInitialized = false
 
+
 // Initializes the network if it's present. Establishes a new network if not
 func Init() {
 	if isInitialized {
@@ -37,9 +38,46 @@ func Init() {
 	messages.Start()
 	go neighbourWatcher()
 	go handleRingChange()
-
+	
 	handleJoin()
 }
+//////////////////////////////////////////////
+/// Exposed functions for sending and reciving
+//////////////////////////////////////////////
+
+func SendElevState(state store.ElevatorState) {
+	Init()
+	stateBytes := json.Marshal(state)
+	messages.SendMessage(StateChange, stateBytes)
+}
+
+func ReciveElevState() store.ElevatorState {
+	Init()
+	state := store.ElevatorState
+	stateBytes := messages.Recive(StateChange)
+	json.Unmarshal(stateBytes, &state)
+	return state
+}
+
+func SendHallCall(hCall store.HallCall) {
+	Init()
+	hCallBytes := json.Marshal(hCall)
+	messages.SendMessage(Call, hCallBytes)
+}
+
+func ReciveHallCall() hCall store.HallCall {
+	Init()
+	hCall := store.HallCall
+	hCallBytes := messages.Recive(Call)
+	json.Unmarshal(hCallBytes, &hCall)
+	return hCall
+}
+
+
+
+/////////////////////////////////////////////////
+/// Functions for setting up and maintaining ring
+/////////////////////////////////////////////////
 
 // Uses UDP broadcast to notify any existing ring about its presens
 func sendJoinMSG() {
@@ -68,8 +106,8 @@ func handleJoin() { //TODO: refactor this
 		if peers.GetRelativeTo(peers.Head, 0) == peers.GetRelativeTo(peers.Self, 0) {
 			sendJoinMSG() // first send join msg
 			select {
+
 			case tail := <-readChn:
-				fmt.Println("New node on the network")
 				peers.AddTail(tail)
 				nodes, _ := json.Marshal(peers.GetAll())
 				if peers.GetRelativeTo(peers.Self, 1) == peers.GetRelativeTo(peers.Tail, 0) {
@@ -77,6 +115,7 @@ func handleJoin() { //TODO: refactor this
 				}
 				messages.SendMessage(NodeChange, nodes)
 				break
+
 			case <-time.After(10 * time.Second): // Listens for new elevators on the network
 				if peers.GetRelativeTo(peers.Head, 0) == peers.GetRelativeTo(peers.Tail, 0) {
 					sendJoinMSG()
@@ -108,44 +147,18 @@ func neighbourWatcher() {
 	for {
 		missingIP := messages.ServerDisconnected()
 		fmt.Printf("Disconnect : %s\n", missingIP)
+
 		peers.Remove(missingIP)
 		peers.BecomeHead()
 		nextNode := peers.GetRelativeTo(peers.Self, 1)
+
 		messages.ConnectTo(nextNode)
+		
 		nodeList := peers.GetAll()
 		nodes, _ := json.Marshal(nodeList)
 		messages.SendMessage(NodeChange, nodes)
 	}
 }
-
-func SendElevState(state store.ElevatorState) {
-	Init()
-	stateBytes := json.Marshal(state)
-	messages.SendMessage(StateChange, stateBytes)
-}
-
-func ReciveElevState() store.ElevatorState {
-	Init()
-	state := store.ElevatorState
-	stateBytes := messages.Recive(StateChange)
-	json.Unmarshal(stateBytes, &state)
-	return state
-}
-
-func SendHallCall(hCall store.HallCall) {
-	Init()
-	hCallBytes := json.Marshal(hCall)
-	messages.SendMessage(Call, hCallBytes)
-}
-
-func ReciveHallCall() hCall store.HallCall {
-	Init()
-	hCall := store.HallCall
-	hCallBytes := messages.Recive(Call)
-	json.Unmarshal(hCallBytes, &hCall)
-	return hCall
-}
-
 
 ////////////////////////////////////////////////////
 // Helper functions
@@ -165,6 +178,7 @@ func dialBroadcastUDP(port int) net.PacketConn {
 	return conn
 }
 
+// Makes it possible to have timeout on udp read
 func blockingRead(readChn chan<- string) {
 	buffer := make([]byte, 100)
 	connRead := dialBroadcastUDP(gBCASTPORT)
@@ -178,5 +192,4 @@ func blockingRead(readChn chan<- string) {
 			readChn <- splittedMsg[1]
 		}
 	}
-
 }
