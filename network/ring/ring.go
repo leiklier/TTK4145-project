@@ -138,6 +138,15 @@ func SendHallCall(hCall store.HallCall) {
 	messages.SendMessage(Call, hCallBytes)
 }
 
+func ReciveHallCall() hCall store.HallCall {
+	Init()
+	hCall := store.HallCall
+	hCallBytes := messages.Recive(Call)
+	json.Unmarshal(hCallBytes, &hCall)
+	return hCall
+}
+
+
 ////////////////////////////////////////////////////
 // Helper functions
 ////////////////////////////////////////////////////
