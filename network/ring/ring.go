@@ -65,7 +65,7 @@ func sendJoinMSG() {
 		selfIP := peers.GetRelativeTo(peers.Self, 0)
 		addr, _ := net.ResolveUDPAddr("udp4", fmt.Sprintf("%s:%d", gBroadcastIP, gBCASTPORT))
 		connWrite.WriteTo([]byte(gJOINMESSAGE+":"+selfIP), addr)
-		time.Sleep(gTIMEOUT * time.Second) // wait for response // Kjøtte inn en for select?
+		time.Sleep(gTIMEOUT * time.Second) // wait for response
 		if !isAlone() {
 			return
 		}
@@ -168,6 +168,7 @@ func blockingRead(readChn chan<- string) {
 	}
 }
 
+// Kanskje kjøtte de her inn i peers
 func isAlone() bool {
 	return peers.GetRelativeTo(peers.Head, 0) == peers.GetRelativeTo(peers.Tail, 0)
 }
