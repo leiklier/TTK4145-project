@@ -66,7 +66,7 @@ func sendJoinMSG() {
 		addr, _ := net.ResolveUDPAddr("udp4", fmt.Sprintf("%s:%d", gBroadcastIP, gBCASTPORT))
 		connWrite.WriteTo([]byte(gJOINMESSAGE+":"+selfIP), addr)
 		time.Sleep(gTIMEOUT * time.Second) // wait for response // Kjøtte inn en for select?
-		if peers.GetRelativeTo(peers.Head, 0) != peers.GetRelativeTo(peers.Self, 0) {
+		if !isAlone() {
 			return
 		}
 	}
@@ -76,23 +76,22 @@ func sendJoinMSG() {
 // on the network using UDP. The new machine is added to the list of
 // known machines. That list is propagted trpough the ring to update the ring
 func handleJoin() {
-
 	readChn := make(chan string)
 	go blockingRead(readChn)
 	for {
-		if peers.GetRelativeTo(peers.Head, 0) == peers.GetRelativeTo(peers.Self, 0) {
+		if isHead() {
 			select {
 			case tail := <-readChn:
 				peers.AddTail(tail)
 				nodes, _ := json.Marshal(peers.GetAll())
-				if peers.GetRelativeTo(peers.Self, 1) == peers.GetRelativeTo(peers.Tail, 0) {
-					messages.ConnectTo(peers.GetRelativeTo(peers.Self, 1))
+				if nextIsTail() {
+					messages.ConnectTo(tail)
 				}
 				messages.SendMessage(NodeChange, nodes)
 				break
 
 			case <-time.After(10 * time.Second): // Listens for new elevators on the network
-				if peers.GetRelativeTo(peers.Head, 0) == peers.GetRelativeTo(peers.Tail, 0) {
+				if isAlone() {
 					sendJoinMSG()
 				}
 				break
@@ -111,8 +110,7 @@ func neighbourWatcher() {
 
 		peers.Remove(missingIP)
 		peers.BecomeHead()
-		nextNode := peers.GetRelativeTo(peers.Self, 1)
-
+		nextNode := getNextNode()
 		messages.ConnectTo(nextNode)
 
 		nodeList := peers.GetAll()
@@ -129,7 +127,7 @@ func handleRingChange() {
 		json.Unmarshal(nodes, &nodesList)
 		if !peers.IsEqualTo(nodesList) {
 			peers.Set(nodesList)
-			nextNode := peers.GetRelativeTo(peers.Self, 1)
+			nextNode := getNextNode()
 			messages.ConnectTo(nextNode)
 			messages.SendMessage(NodeChange, nodes)
 		}
@@ -164,8 +162,24 @@ func blockingRead(readChn chan<- string) {
 		n, _, _ := connRead.ReadFrom(buffer[0:])
 		msg := string(buffer[:n])
 		splittedMsg := strings.SplitN(msg, ":", 2)
-		if splittedMsg[0] == gJOINMESSAGE && splittedMsg[1] != peers.GetRelativeTo(peers.Self, 0) {
+		if splittedMsg[0] == gJOINMESSAGE && splittedMsg[1] != peers.GetRelativeTo(peers.Self, 0) { // Hmmmmmm
 			readChn <- splittedMsg[1]
 		}
 	}
+}
+
+func isAlone() bool {
+	return peers.GetRelativeTo(peers.Head, 0) == peers.GetRelativeTo(peers.Tail, 0)
+}
+
+func isHead() bool {
+	return peers.GetRelativeTo(peers.Head, 0) == peers.GetRelativeTo(peers.Tail, 0)
+}
+
+func nextIsTail() bool {
+	return peers.GetRelativeTo(peers.Self, 1) == peers.GetRelativeTo(peers.Tail, 0)
+}
+
+func getNextNode() string {
+	return peers.GetRelativeTo(peers.Self, 1)
 }
