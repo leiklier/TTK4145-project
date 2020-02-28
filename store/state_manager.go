@@ -17,13 +17,18 @@ const (
 	CV_InDirn              = 1
 )
 
-type HallCall int
+type HallCall struct {
+	GDirection Direction
+	GFloor     int
+}
+
+type HallCallDir int
 
 const (
-	HC_none HallCall = -1 // Nothing to do
-	HC_up            = 0
-	HC_down          = 1
-	HC_both          = 2
+	HC_none HallCallDir = -1 // Nothing to do
+	HC_up               = 0
+	HC_down             = 1
+	HC_both             = 2
 )
 
 type Direction int
@@ -59,7 +64,6 @@ var GAllElevatorStates = make([]ElevatorState, numElevators) // TODO fiks dynami
 var localElevator = initElevatorState()
 var mutex = &sync.Mutex{}
 
-
 // Updates the list of all elevators
 func updateElevatorStates(elev ElevatorState) {
 
@@ -77,7 +81,7 @@ func initElevatorState() ElevatorState {
 	elev.Ip = "" // Kanskje legg inn at den henter egen Ip
 	elev.Current_floor = 0
 	elev.GDirection = 0
-	elev.Hall_calls = [numFloors]HallCall{HC_none, HC_none, HC_none, HC_none}
+	elev.Hall_calls = [numFloors]HallCall{{DIR_idle, 0}, {DIR_idle, 0}, {DIR_idle, 0}, {DIR_idle, 0}}
 	elev.Cab_calls = [numFloors]bool{false, false, false, false}
 	elev.Door_open = false
 	elev.IsWorking = true // Assuming that it works... Mby add some test is possible?
@@ -142,29 +146,3 @@ func GetFloorAndDir() (int, Direction) {
 	defer mutex.Unlock()
 	return localElevator.Current_floor, localElevator.GDirection
 }
-
-
-
-// GO has no built in absolute value function for integers, so must create my own
-// Abs returns the absolute value of x.
-func Abs(x int) int {
-	if x < 0 {
-		return -x
-	}
-	return x
-}
-
-// Convert from HC_dir to Elevator Direction
-func HCDirToElevDir(hc HallCall) Direction {
-	switch hc {
-	case HC_up:
-		return DIR_up
-	case HC_down:
-		return DIR_down
-	case HC_both:
-		return DIR_both
-	default: // Assumes HC_none
-		return DIR_idle
-	}
-}
-
