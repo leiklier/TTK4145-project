@@ -37,19 +37,42 @@ func Init() {
 	go neighbourWatcher()
 	go handleRingChange()
 	sendJoinMSG() // first send join msg
-	handleJoin()
+	/*go*/ handleJoin()
 }
 
 //////////////////////////////////////////////
 /// Exposed functions for sending and reciving
 //////////////////////////////////////////////
 
-func SendMessage(purpose string, data []byte) {
-	messages.SendMessage(purpose, data)
+func SendMessage(purpose string, data []byte) bool {
+	Init()
+	return messages.SendMessage(purpose, data)
 }
 
 func Recive(purpose string) []byte {
+	Init()
 	return messages.Receive(purpose)
+}
+func SendDM(purpose string, ip string, data []byte) bool {
+	dataMap := make(map[string][]byte)
+	dataMap[ip] = data
+	dataMapbytes, _ := json.Marshal(dataMap)
+	return messages.SendMessage(purpose, dataMapbytes)
+}
+
+func ReciveDM(purpose string) []byte {
+	Init()
+	for {
+		dataMap := make(map[string][]byte)
+		dataMapbytes := messages.Receive(purpose)
+
+		json.Unmarshal(dataMapbytes, &dataMap)
+		selfIP := peers.GetSelf()
+		data, found := dataMap[selfIP]
+		if found {
+			return data
+		}
+	}
 }
 
 /////////////////////////////////////////////////
@@ -66,7 +89,7 @@ func sendJoinMSG() {
 		addr, _ := net.ResolveUDPAddr("udp4", fmt.Sprintf("%s:%d", gBroadcastIP, gBCASTPORT))
 		connWrite.WriteTo([]byte(gJOINMESSAGE+":"+selfIP), addr)
 		time.Sleep(gTIMEOUT * time.Second) // wait for response
-		if !isAlone() {
+		if !peers.IsAlone() {
 			return
 		}
 	}
@@ -79,19 +102,19 @@ func handleJoin() {
 	readChn := make(chan string)
 	go blockingRead(readChn)
 	for {
-		if isHead() {
+		if peers.IsHead() {
 			select {
 			case tail := <-readChn:
 				peers.AddTail(tail)
 				nodes, _ := json.Marshal(peers.GetAll())
-				if nextIsTail() {
+				if peers.NextIsTail() {
 					messages.ConnectTo(tail)
 				}
 				messages.SendMessage(NodeChange, nodes)
 				break
 
 			case <-time.After(10 * time.Second): // Listens for new elevators on the network
-				if isAlone() {
+				if peers.IsAlone() {
 					sendJoinMSG()
 				}
 				break
@@ -110,7 +133,7 @@ func neighbourWatcher() {
 
 		peers.Remove(missingIP)
 		peers.BecomeHead()
-		nextNode := getNextNode()
+		nextNode := peers.GetNextNode()
 		messages.ConnectTo(nextNode)
 
 		nodeList := peers.GetAll()
@@ -127,7 +150,7 @@ func handleRingChange() {
 		json.Unmarshal(nodes, &nodesList)
 		if !peers.IsEqualTo(nodesList) {
 			peers.Set(nodesList)
-			nextNode := getNextNode()
+			nextNode := peers.GetNextNode()
 			messages.ConnectTo(nextNode)
 			messages.SendMessage(NodeChange, nodes)
 		}
@@ -166,21 +189,4 @@ func blockingRead(readChn chan<- string) {
 			readChn <- splittedMsg[1]
 		}
 	}
-}
-
-// Kanskje kjøtte de her inn i peers
-func isAlone() bool {
-	return peers.GetRelativeTo(peers.Head, 0) == peers.GetRelativeTo(peers.Tail, 0)
-}
-
-func isHead() bool {
-	return peers.GetRelativeTo(peers.Head, 0) == peers.GetRelativeTo(peers.Tail, 0)
-}
-
-func nextIsTail() bool {
-	return peers.GetRelativeTo(peers.Self, 1) == peers.GetRelativeTo(peers.Tail, 0)
-}
-
-func getNextNode() string {
-	return peers.GetRelativeTo(peers.Self, 1)
 }

@@ -57,9 +57,11 @@ func ServerDisconnected() string {
 // SendMessage takes a byte array and sends it
 // to the node which it is connected to by ConnectTo
 // purpose is used to filter the message on the receiving end
-func SendMessage(purpose string, data []byte) {
+func SendMessage(purpose string, data []byte) bool {
 	initialize()
-
+	if peers.IsAlone() {
+		return false
+	}
 	localIP := peers.GetRelativeTo(peers.Self, 0)
 	message := Message{
 		Purpose:  purpose,
@@ -68,6 +70,7 @@ func SendMessage(purpose string, data []byte) {
 		Data:     data,
 	}
 	gSendForwardChannel <- message
+	return true
 }
 
 func Receive(purpose string) []byte {

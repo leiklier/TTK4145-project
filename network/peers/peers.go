@@ -233,6 +233,25 @@ func IsEqualTo(peersToCompare []string) bool {
 	return true
 }
 
+func IsAlone() bool {
+	return GetRelativeTo(Head, 0) == GetRelativeTo(Tail, 0)
+}
+
+func IsHead() bool {
+	return GetRelativeTo(Head, 0) == GetRelativeTo(Tail, 0)
+}
+
+func NextIsTail() bool {
+	return GetRelativeTo(Self, 1) == GetRelativeTo(Tail, 0)
+}
+
+func GetNextNode() string {
+	return GetRelativeTo(Self, 1)
+}
+func GetSelf() string {
+	return localIP
+}
+
 func getLocalIP() (string, error) {
 	conn, err := net.DialTCP("tcp4", nil, &net.TCPAddr{IP: []byte{8, 8, 8, 8}, Port: 53})
 	if err != nil {

@@ -7,38 +7,27 @@ import (
 	"../store"
 )
 
-func SendElevState(state store.ElevatorState) {
-	Init()
+func SendElevState(state store.ElevatorState) bool {
 	stateBytes := json.Marshal(state)
-	messages.SendMessage(StateChange, stateBytes)
+	return ring.SendMessage(StateChange, stateBytes)
 }
 
 func ReceiveElevState() store.ElevatorState {
-	ring.Init()
 	state := store.ElevatorState
-	stateBytes := messages.Receive(StateChange)
+	stateBytes := ring.Receive(StateChange)
 	json.Unmarshal(stateBytes, &state)
-	return state
+	return state, true
 }
 
-func SendHallCall(ip string, hCall store.HallCall) {
-	ring.Init()
-	hCallMap := make(map[string]store.HallCall)
-	hCallBytes := json.Marshal(hCallMap)
-	messages.SendMessage(Call, hCallBytes)
+func SendHallCall(ip string, ip string, hCall store.HallCall) bool {
+	hCallBytes, _ := json.Marshal(hCall)
+	return ring.SendDM(Call, ip, hCallBytes)
 }
 
 func ReceiveHallCall() store.HallCall {
-	Init()
-	for {
-		hCallMap := make(map[string]store.HallCall)
-		hCallBytes := messages.Receive(Call)
+	hCall := store.HallCall
+	hCallBytes := ring.Receive(Call)
 
-		json.Unmarshal(hCallBytes, &hCallMap)
-		selfIP := peers.GetRelativeTo(peers.Self, 0)
-		hcall, found := hCallMap[selfIP]
-		if found {
-			return hcall
-		}
-	}
+	json.Unmarshal(hCallBytes, &hCall)
+	return hCall
 }
