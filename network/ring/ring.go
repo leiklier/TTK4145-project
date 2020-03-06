@@ -45,34 +45,13 @@ func Init() {
 //////////////////////////////////////////////
 
 func SendMessage(purpose string, data []byte) bool {
-	Init()
+	// Init()
 	return messages.SendMessage(purpose, data)
 }
 
-func Recive(purpose string) []byte {
-	Init()
+func Receive(purpose string) []byte {
+	// Init()
 	return messages.Receive(purpose)
-}
-func SendDM(purpose string, ip string, data []byte) bool {
-	dataMap := make(map[string][]byte)
-	dataMap[ip] = data
-	dataMapbytes, _ := json.Marshal(dataMap)
-	return messages.SendMessage(purpose, dataMapbytes)
-}
-
-func ReciveDM(purpose string) []byte {
-	Init()
-	for {
-		dataMap := make(map[string][]byte)
-		dataMapbytes := messages.Receive(purpose)
-
-		json.Unmarshal(dataMapbytes, &dataMap)
-		selfIP := peers.GetSelf()
-		data, found := dataMap[selfIP]
-		if found {
-			return data
-		}
-	}
 }
 
 /////////////////////////////////////////////////

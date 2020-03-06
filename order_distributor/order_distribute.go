@@ -18,16 +18,3 @@ func ReceiveElevState() store.ElevatorState {
 	json.Unmarshal(stateBytes, &state)
 	return state, true
 }
-
-func SendHallCall(ip string, ip string, hCall store.HallCall) bool {
-	hCallBytes, _ := json.Marshal(hCall)
-	return ring.SendDM(Call, ip, hCallBytes)
-}
-
-func ReceiveHallCall() store.HallCall {
-	hCall := store.HallCall
-	hCallBytes := ring.Receive(Call)
-
-	json.Unmarshal(hCallBytes, &hCall)
-	return hCall
-}
