@@ -198,6 +198,9 @@ func RemoveCabCall(elevatorIP string, floor int) error {
 
 }
 
-func MostSuitedElevator(floor int, direction elevators.HCDirection_e) string {
+func MostSuitedElevator(hcFloor int, hcDirection elevators.HCDirection_e) string {
+	gStateMutex.Lock()
+	defer gStateMutex.Unlock()
 
+	return costfunction.MostSuitedElevator(allElevators, NumFloors, hcFloor, hcDirection)
 }

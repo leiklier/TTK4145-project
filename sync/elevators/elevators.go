@@ -41,7 +41,7 @@ func (e Elevator_s) GetIP() string {
 	return e.ip
 }
 
-func (e Elevator_s) GetCurrentFloot() int {
+func (e Elevator_s) GetCurrentFloor() int {
 	return e.currentFloor
 }
 

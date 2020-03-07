@@ -1,42 +1,45 @@
-package store
+package costfunction
 
 import (
 	"fmt"
+
+	"../elevators"
 )
 
 // Returns IP address of most suited elevator to handle hallcal
-func MostSuitedElevator(hc HallCall, flflf int) string {
+func MostSuitedElevator(allElevators []elevators.Elevator_s, numFloors int, hcFloor int, hcDirection elevators.HCDirection_e) string {
 	// Steg 1: Gi ordren til heis uten calls, som er nærmest
 	// Håndterer om det er idle, og gir til idle
 
 	isClear := true
-	var candidates []ElevatorState
-	for _, elev := range GAllElevatorStates {
-		hc_list := elev.Hall_calls
-		dir := elev.GDirection
-		if dir == DIR_idle {
-			return elev.Ip
+	var candidates []elevators.Elevator_s
+	for _, elevator := range allElevators {
+		hallCalls := elevator.GetHallCalls()
+		directionMoving := elevator.GetDirectionMoving()
+
+		if directionMoving == elevators.DirectionIdle {
+			return elevator.GetIP()
 		}
 
-		for _, hcElement := range hc_list {
-			if hcElement.GDirection != (DIR_idle) {
+		for _, hallCall := range hallCalls {
+			if hallCall.IsUp || hallCall.IsDown {
 				isClear = false
 				break
 			}
 		}
 		if isClear {
-			candidates = append(candidates, elev)
+			candidates = append(candidates, elevator)
 		}
 	}
 	if isClear {
 		currMaxDiff := numFloors + 1
 		// Ip of closest elevator to origin floor. Default with err msg
 		currCand := "Something went wrong"
-		for _, elev := range candidates {
-			floorDiff := abs(elev.Current_floor - hc.GFloor)
+		for _, elevator := range candidates {
+			floorDiff := abs(elevator.GetCurrentFloor() - hcFloor)
 			if floorDiff < currMaxDiff {
 				currMaxDiff = floorDiff
-				currCand = elev.Ip
+				currCand = elevator.GetIP()
 				//fmt.Println("Kom inn i isClear")
 			}
 		}
@@ -48,31 +51,31 @@ func MostSuitedElevator(hc HallCall, flflf int) string {
 		currMaxFS := 0
 		var currentMax string // Ip of elevator with highest FSvalue
 
-		for _, elev := range GAllElevatorStates {
+		for _, elevator := range allElevators {
 			// Extract elevator information
-			currFloor := elev.Current_floor
-			elevDir := elev.GDirection
+			currFloor := elevator.GetCurrentFloor()
+			elevDir := elevator.GetDirectionMoving()
 
 			// hcDir := HCDirToElevDir(hc)
 
 			var sameDir bool
-			if hc.GDirection == elevDir {
+			if hcDirection == elevDir {
 				sameDir = true
 			} else {
 				sameDir = false
 			}
-			floorDiff := abs(currFloor - hc.GFloor)
+			floorDiff := abs(currFloor - hcFloor)
 
 			var goingTowards bool
-			if (currFloor-hc.GFloor) > 0 && elevDir == DIR_down {
+			if (currFloor-hcFloor) > 0 && elevDir == elevators.DirectionDown {
 				goingTowards = true
-			} else if (currFloor-hc.GFloor) < 0 && elevDir == DIR_down {
+			} else if (currFloor-hcFloor) < 0 && elevDir == elevators.DirectionDown {
 				goingTowards = false
-			} else if (currFloor-hc.GFloor) > 0 && elevDir == DIR_up {
+			} else if (currFloor-hcFloor) > 0 && elevDir == elevators.DirectionUp {
 				goingTowards = false
-			} else if (currFloor-hc.GFloor) < 0 && elevDir == DIR_up {
+			} else if (currFloor-hcFloor) < 0 && elevDir == elevators.DirectionUp {
 				goingTowards = true
-			} else if (currFloor - hc.GFloor) == 0 {
+			} else if (currFloor - hcFloor) == 0 {
 				// Hmmmm, this means that it is at the same floor when button is pressed.
 				// Extremely unlikely...
 			} else {
@@ -90,10 +93,10 @@ func MostSuitedElevator(hc HallCall, flflf int) string {
 			} else if !goingTowards {
 				FS = 1
 			}
-			fmt.Println("FS Score of elevator", elev.Ip, "is:", FS)
+			fmt.Println("FS Score of elevator", elevator.GetIP(), "is:", FS)
 			if FS > currMaxFS {
 				currMaxFS = FS
-				currentMax = elev.Ip
+				currentMax = elevator.GetIP()
 			}
 		}
 
@@ -114,18 +117,4 @@ func abs(x int) int {
 		return -x
 	}
 	return x
-}
-
-// Convert from HC Direction to Elevator Direction
-func HCDirToElevDir(hc HallCallDir) Direction {
-	switch hc {
-	case HC_up:
-		return DIR_up
-	case HC_down:
-		return DIR_down
-	case HC_both:
-		return DIR_both
-	default: // Assumes HC_none
-		return DIR_idle
-	}
 }
