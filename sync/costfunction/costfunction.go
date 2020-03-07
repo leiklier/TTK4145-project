@@ -4,21 +4,7 @@ import (
 	"fmt"
 )
 
-func DistributeHallCall(hc HallCall, ip string) {
-
-}
-
-/*
-
-Måter vi kan distrubuere ordren på
-
-1. Send rundt til alle
-
-
-
-*/
-
-// Returns Ip address of most suited elevator to handle hallcal
+// Returns IP address of most suited elevator to handle hallcal
 func MostSuitedElevator(hc HallCall, flflf int) string {
 	// Steg 1: Gi ordren til heis uten calls, som er nærmest
 	// Håndterer om det er idle, og gir til idle

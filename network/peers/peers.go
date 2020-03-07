@@ -249,7 +249,7 @@ func GetNextNode() string {
 	return GetRelativeTo(Self, 1)
 }
 func GetSelf() string {
-	return localIP
+	return GetRelativeTo(Self, 0)
 }
 
 func getLocalIP() (string, error) {
