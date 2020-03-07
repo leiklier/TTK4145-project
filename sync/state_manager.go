@@ -106,7 +106,7 @@ func UpdateDirectionState(direction Direction) {
 	}
 }
 
-func DetermineLight(floor int) bool {
+	func DetermineLight(floor int) bool {
 	if floor == localElevator.Current_floor && localElevator.GDirection == 0 {
 		fmt.Println("Same floor")
 		return false // If elevator is standing still and at floor, dont accept
