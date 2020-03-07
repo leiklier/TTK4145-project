@@ -85,6 +85,23 @@ func (e Elevator_s) RemoveHallCalls(floor int) error {
 
 	e.hallCalls[floor].IsUp = false
 	e.hallCalls[floor].IsDown = false
+	return nil
+}
 
+func (e Elevator_s) AddCabCall(floor int) error {
+	if floor > e.NumFloors-1 {
+		return errors.New("ERR_INVALID_FLOOR")
+	}
+
+	e.cabCalls[floor] = true
+	return nil
+}
+
+func (e Elevator_s) RemoveCabCall(floor int) error {
+	if floor > e.NumFloors-1 {
+		return errors.New("ERR_INVALID_FLOOR")
+	}
+
+	e.cabCalls[floor] = false
 	return nil
 }
