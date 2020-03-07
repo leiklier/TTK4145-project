@@ -3,6 +3,7 @@ package store
 import(
 	"../../network/peers"
 	"../elevators"
+	"../costfunction"
 	"sync"
 	"errors"
 )
@@ -11,7 +12,7 @@ var gState = []elevators.Elevator_s
 var gStateMutex sync.Mutex
 
 var gIsInitialized = false
-const gNumFloors = 4
+const NumFloors = 4
 
 func initialize() {
 	if gIsInitialized {
@@ -26,7 +27,7 @@ func initialize() {
 
 	localIP := peers.GetRelativeTo(peers.Self, 0)
 	selfInitialFloor := 0
-	gState[0] = elevators.New(localIP, gNumFloors, selfInitialFloor)
+	gState[0] = elevators.New(localIP, NumFloors, selfInitialFloor)
 
 
 }
@@ -99,7 +100,7 @@ func SetCurrentFloor(elevatorIP string, currentFloor int) error {
 	return nil
 }
 
-func GetDirectionMoving(elevatorIP string)  (elevators.MoveDirection_e, error) {
+func GetDirectionMoving(elevatorIP string)  (elevators.Direction, error) {
 	initialize()
 
 	gStateMutex.Lock()
@@ -113,7 +114,7 @@ func GetDirectionMoving(elevatorIP string)  (elevators.MoveDirection_e, error) {
 	return elevator.GetDirectionMoving(), nil
 }
 
-func SetDirectionMoving(elevatorIP string, newDirection elevators.MoveDirection_e) error {
+func SetDirectionMoving(elevatorIP string, newDirection elevators.Direction) error {
 	gStateMutex.Lock()
 	defer gStateMutex.Unlock()
 
@@ -126,7 +127,7 @@ func SetDirectionMoving(elevatorIP string, newDirection elevators.MoveDirection_
 	return nil
 }
 
-func AddHallCall(elevatorIP string, floor int, direction elevators.HCDirection_e) error {
+func AddHallCall(elevatorIP string, floor int, direction elevators.Direction) error {
 	gStateMutex.Lock()
 	defer gStateMutex.Unlock()
 
@@ -194,5 +195,9 @@ func RemoveCabCall(elevatorIP string, floor int) error {
 	}
 
 	return nil
+
+}
+
+func MostSuitedElevator(floor int, direction elevators.HCDirection_e) string {
 
 }

@@ -7,26 +7,19 @@ type hallCall_s struct {
 	IsDown bool
 }
 
-type MoveDirection_e int
+type Direction int
 
 const (
-	DirectionUp MoveDirection_e = iota
-	DirectionDown
-	DirectionIdle
-)
-
-type HCDirection_e int
-
-const (
-	HCDirectionUp HCDirection_e = iota
-	HCDirectionDown
+	DirectionUp   Direction = 1
+	DirectionDown           = -1
+	DirectionIdle           = 0
 )
 
 type Elevator_s struct {
 	ip              string
 	currentFloor    int
 	NumFloors       int
-	directionMoving MoveDirection_e
+	directionMoving Direction
 	hallCalls       []hallCall_s
 	cabCalls        []bool
 }
@@ -56,22 +49,26 @@ func (e Elevator_s) SetCurrentFloor(currentFloor int) {
 	e.currentFloor = currentFloor
 }
 
-func (e Elevator_s) GetDirectionMoving() MoveDirection_e {
+func (e Elevator_s) GetDirectionMoving() Direction {
 	return e.directionMoving
 }
 
-func (e Elevator_s) SetDirectionMoving(newDirection MoveDirection_e) {
+func (e Elevator_s) SetDirectionMoving(newDirection Direction) {
 	e.directionMoving = newDirection
 }
 
-func (e Elevator_s) AddHallCall(floor int, direction HCDirection_e) error {
+func (e Elevator_s) GetHallCalls() []hallCall_s {
+	return e.hallCalls
+}
+
+func (e Elevator_s) AddHallCall(floor int, direction Direction) error {
 	if floor > e.NumFloors-1 {
 		return errors.New("ERR_INVALID_FLOOR")
 	}
 
-	if direction == HCDirectionUp {
+	if direction == DirectionUp {
 		e.hallCalls[floor].IsUp = true
-	} else if direction == HCDirectionDown {
+	} else if direction == DirectionDown {
 		e.hallCalls[floor].IsDown = true
 	}
 

@@ -5,6 +5,8 @@ import (
 	"net"
 	"sync"
 	"time"
+
+	"../sync/elevators"
 )
 
 const _pollRate = 20 * time.Millisecond
@@ -13,14 +15,6 @@ var _initialized bool = false
 var _numFloors int = 4
 var _mtx sync.Mutex
 var _conn net.Conn
-
-type MotorDirection int
-
-const (
-	MD_Up   MotorDirection = 1
-	MD_Down                = -1
-	MD_Stop                = 0
-)
 
 type ButtonType int
 
@@ -50,7 +44,7 @@ func Init(addr string, numFloors int) {
 	_initialized = true
 }
 
-func SetMotorDirection(dir MotorDirection) {
+func SetMotorDirection(dir elevators.Direction) {
 	_mtx.Lock()
 	defer _mtx.Unlock()
 	_conn.Write([]byte{1, byte(dir), 0, 0})
