@@ -15,7 +15,8 @@ import (
 
 const numFloors = 4
 
-func main() {
+// RunElevator Her skjer det
+func RunElevator() {
 	// Warning for windows users
 	if runtime.GOOS == "windows" {
 		fmt.Println("Can't Execute this on a windows machine")
@@ -38,7 +39,9 @@ func main() {
 	drv_floors := make(chan int)
 	drv_obstr := make(chan bool)
 	drv_stop := make(chan bool)
-	dst := make(chan store.Command)
+	// dst := make(chan store.Command)
+	update := make(chan bool)
+	nextFloor := make(chan int)
 
 	go elevio.PollButtons(drv_buttons) // Etasje og hvilken type knapp som blir trykket
 	go elevio.PollFloorSensor(drv_floors)
@@ -90,8 +93,14 @@ func main() {
 				}
 			}
 
-		case a := <-dst:
-			go goToFloor(a.DstFloor, a.CurFloor, drv_floors)
+		case a := <-update:
+			if a == false {
+				// Do nothing
+			} else {
+
+			}
+		case a := <-nextFloor:
+			go goToFloor(a.DstFloor, a.CurFloor, drv_floors) // Må endre parametre
 		}
 	}
 }

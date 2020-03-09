@@ -18,6 +18,7 @@ type Elevator_s struct {
 	ip              string
 	currentFloor    int
 	NumFloors       int
+	PrevFloor       int
 	directionMoving Direction_e
 	hallCalls       []HallCall_s
 	cabCalls        []bool
@@ -27,6 +28,7 @@ func New(peerIP string, numFloors int, currentFloor int) Elevator_s {
 	elevator := Elevator_s{
 		ip:              peerIP,
 		currentFloor:    currentFloor,
+		PrevFloor:       currentFloor, // initialize with same floor
 		NumFloors:       numFloors,
 		directionMoving: DirectionIdle,
 		hallCalls:       make([]HallCall_s, numFloors),

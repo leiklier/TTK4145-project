@@ -6,6 +6,7 @@ import(
 	"../costfunction"
 	"sync"
 	"errors"
+	"time"
 )
 
 var gState = []elevators.Elevator_s
@@ -158,7 +159,6 @@ func AddCabCall(elevatorIP string, floor int) error {
 	elevator.AddCabCall(floor)
 
 	return nil
-
 }
 
 func RemoveCabCall(elevatorIP string, floor int) error {
@@ -179,9 +179,4 @@ func MostSuitedElevator(hcFloor int, hcDirection elevators.HCDirection_e) string
 	defer gStateMutex.Unlock()
 
 	return costfunction.MostSuitedElevator(allElevators, NumFloors, hcFloor, hcDirection)
-}
-
-// SubscribeToDestinationUpdates
-func SubscribeToDestinationUpdates(newFloor chan int) {
-	// Her skal du til dyst jakvah!
 }
