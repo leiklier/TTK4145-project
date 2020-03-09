@@ -22,7 +22,7 @@ func MostSuitedElevator(allElevators []elevators.Elevator_s, numFloors int, hcFl
 		}
 
 		for _, hallCall := range hallCalls {
-			if hallCall.IsUp || hallCall.IsDown {
+			if hallCall.Direction != elevators.DirectionIdle {
 				isClear = false
 				break
 			}
