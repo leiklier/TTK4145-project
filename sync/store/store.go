@@ -100,7 +100,7 @@ func SetCurrentFloor(elevatorIP string, currentFloor int) error {
 	return nil
 }
 
-func GetDirectionMoving(elevatorIP string)  (elevators.Direction, error) {
+func GetDirectionMoving(elevatorIP string)  (elevators.Direction_e, error) {
 	initialize()
 
 	gStateMutex.Lock()
@@ -114,7 +114,7 @@ func GetDirectionMoving(elevatorIP string)  (elevators.Direction, error) {
 	return elevator.GetDirectionMoving(), nil
 }
 
-func SetDirectionMoving(elevatorIP string, newDirection elevators.Direction) error {
+func SetDirectionMoving(elevatorIP string, newDirection elevators.Direction_e) error {
 	gStateMutex.Lock()
 	defer gStateMutex.Unlock()
 
@@ -127,7 +127,7 @@ func SetDirectionMoving(elevatorIP string, newDirection elevators.Direction) err
 	return nil
 }
 
-func AddHallCall(elevatorIP string, floor int, direction elevators.Direction) error {
+func AddHallCall(elevatorIP string, hallCall elevators.HallCall_s) error {
 	gStateMutex.Lock()
 	defer gStateMutex.Unlock()
 
@@ -137,10 +137,7 @@ func AddHallCall(elevatorIP string, floor int, direction elevators.Direction) er
 	}
 
 
-	err = elevator.AddHallCall(floor, direction)
-	if err != nil {
-		return err
-	}
+	elevator.AddHallCall(hallCall)
 
 	return nil
 }
@@ -154,10 +151,7 @@ func RemoveHallCalls(elevatorIP string, floor int) error {
 		return err
 	}
 
-	err = elevator.RemoveHallCalls(floor)
-	if err != nil {
-		return err
-	}
+	elevator.RemoveHallCalls(floor)
 
 	return nil
 }
@@ -171,10 +165,7 @@ func AddCabCall(elevatorIP string, floor int) error {
 		return err
 	}
 
-	err = elevator.AddCabCall(floor)
-	if err != nil {
-		return err
-	}
+	elevator.AddCabCall(floor)
 
 	return nil
 
@@ -189,12 +180,7 @@ func RemoveCabCall(elevatorIP string, floor int) error {
 		return err
 	}
 
-	err = elevator.RemoveCabCall(floor)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	elevator.RemoveCabCall(floor)
 
 }
 
