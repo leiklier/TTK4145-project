@@ -67,7 +67,7 @@ func handleJoin() {
 	for {
 		select {
 		case tail := <-readChn:
-			if peers.IsHead() {
+			if !peers.IsHead() {
 				break
 			}
 
@@ -86,7 +86,6 @@ func handleJoin() {
 			}
 			break
 		}
-
 	}
 }
 

@@ -6,8 +6,8 @@ import (
 	"../network/ring"
 	"../sync/store"
 	"../sync/elevators"
+	"../sync/watchdog"
 )
-
 
 const (
 	State = "State"
@@ -37,12 +37,13 @@ func ListenElevatorUpdate() {
 	for select {
 		case state := <- state_channel:
 			store.Update(state)
+			// watchdog.AddState(state)
 			break
 		case call := <- call_channel:
 			json.Unmarshal(call, &dataMap)
 			hCallBytes, found := dataMap[selfIP]
 			if found {
-				json.Unmarshal(hCallBytes, hCall)
+				json.Unmarshal(hCallBytes, &hCall)
 				store.AddCall(hCall)
 			}
 			break
