@@ -23,8 +23,6 @@ func init() {
 	localIP := peers.GetRelativeTo(peers.Self, 0)
 	selfInitialFloor := 0
 	gState[0] = elevators.New(localIP, NumFloors, selfInitialFloor)
-
-
 }
 
 func Add(newElevator elevators.Elevator_s) error {
@@ -51,6 +49,13 @@ func Remove(ipToRemove string) {
 			gState = gState[:len(gState)-1] // Truncate slice.
 		}
 	}
+}
+
+func GetAll() {
+	gStateMutex.Lock()
+	defer gStateMutex.Unlock()
+
+	return gState
 }
 
 func getElevator(elevatorIP string) (elevators.Elevator_s, error) {
@@ -174,4 +179,9 @@ func MostSuitedElevator(hcFloor int, hcDirection elevators.HCDirection_e) string
 	defer gStateMutex.Unlock()
 
 	return costfunction.MostSuitedElevator(allElevators, NumFloors, hcFloor, hcDirection)
+}
+
+// SubscribeToDestinationUpdates
+func SubscribeToDestinationUpdates(newFloor chan int) {
+	// Her skal du til dyst jakvah!
 }
