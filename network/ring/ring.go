@@ -13,17 +13,12 @@ import (
 	"../peers"
 )
 
-const (
-	NodeChange  = "NodeChange"
-	StateChange = "State"
-	Call        = "Call"
-)
-
 const gBCASTPORT = 6971
 const gBroadcastIP = "255.255.255.255"
 const gConnectAttempts = 5
 const gTIMEOUT = 2
 const gJOINMESSAGE = "JOIN"
+const NodeChange = "NodeChange"
 
 var isInitialized = false
 
@@ -34,29 +29,103 @@ func Init() {
 	}
 	isInitialized = true
 	messages.Start()
-	go neighbourWatcher()
-	go handleRingChange()
-	sendJoinMSG() // first send join msg
-	/*go*/ handleJoin()
+	go ringWatcher()
+	go handleJoin()
 }
 
 //////////////////////////////////////////////
 /// Exposed functions for sending and reciving
 //////////////////////////////////////////////
 
-func SendMessage(purpose string, data []byte) bool {
-	// Init()
+func BroadcastMessage(purpose string, data []byte) bool {
+	Init()
 	return messages.SendMessage(purpose, data)
 }
 
-func Receive(purpose string) []byte {
-	// Init()
-	return messages.Receive(purpose)
+func GetReceiver(purpose string) chan<- []byte {
+	Init()
+	return messages.GetReceiver(purpose)
 }
 
-/////////////////////////////////////////////////
+func SendToPeer(purpose string, ip string, data []byte) bool {
+	dataMap := make(map[string][]byte)
+	dataMap[ip] = data
+	dataMapbytes, _ := json.Marshal(dataMap)
+	return messages.SendMessage(purpose, dataMapbytes)
+}
+
+//////////////////////////	///////////////////////
 /// Functions for setting up and maintaining ring
 /////////////////////////////////////////////////
+
+// Only runs if you are HEAD, listen for new machines broadcasting
+// on the network using UDP. The new machine is added to the list of
+// known machines. That list is propagted trpough the ring to update the ring
+func handleJoin() {
+	readChn := make(chan string)
+	go nonBlockingRead(readChn)
+	for {
+		select {
+		case tail := <-readChn:
+			if peers.IsHead() {
+				break
+			}
+
+			peers.AddTail(tail)
+			if peers.IsNextTail() {
+				messages.ConnectTo(tail)
+			}
+			nodes := peers.GetAll()
+			nodesBytes, _ := json.Marshal(nodes)
+			messages.SendMessage(NodeChange, nodesBytes)
+			break
+
+		case <-time.After(10 * time.Second): // Listens for new elevators on the network
+			if peers.IsAlone() {
+				sendJoinMSG()
+			}
+			break
+		}
+
+	}
+}
+
+// Handles ring growth and shrinking
+// Detects if the node infront of you disconnects, alerts rest of ring
+// That node becomes the master
+func ringWatcher() {
+	var nodesList []string
+	var disconnectedIP string
+
+	nodeChangeReciver := messages.GetReceiver(NodeChange)
+
+	for {
+		select {
+		case disconnectedIP = <-messages.DisconnectedFromServerChannel:
+			fmt.Printf("Disconnect : %s\n", disconnectedIP)
+
+			peers.Remove(disconnectedIP)
+			peers.BecomeHead()
+			nextNode := peers.GetNextNode()
+			messages.ConnectTo(nextNode)
+
+			nodeList := peers.GetAll()
+			nodeBytes, _ := json.Marshal(nodeList)
+			messages.SendMessage(NodeChange, nodeBytes)
+			break
+
+		case nodeBytes := <-nodeChangeReciver:
+			json.Unmarshal(nodeBytes, &nodesList)
+			if !peers.IsEqualTo(nodesList) {
+				peers.Set(nodesList)
+				nextNode := peers.GetNextNode()
+				messages.ConnectTo(nextNode)
+				messages.SendMessage(NodeChange, nodeBytes)
+			}
+			break
+		}
+	}
+}
 
 // Uses UDP broadcast to notify any existing ring about its presens
 func sendJoinMSG() {
@@ -70,68 +139,6 @@ func sendJoinMSG() {
 		time.Sleep(gTIMEOUT * time.Second) // wait for response
 		if !peers.IsAlone() {
 			return
-		}
-	}
-}
-
-// Only runs if you are HEAD, listen for new machines broadcasting
-// on the network using UDP. The new machine is added to the list of
-// known machines. That list is propagted trpough the ring to update the ring
-func handleJoin() {
-	readChn := make(chan string)
-	go blockingRead(readChn)
-	for {
-		if peers.IsHead() {
-			select {
-			case tail := <-readChn:
-				peers.AddTail(tail)
-				nodes, _ := json.Marshal(peers.GetAll())
-				if peers.NextIsTail() {
-					messages.ConnectTo(tail)
-				}
-				messages.SendMessage(NodeChange, nodes)
-				break
-
-			case <-time.After(10 * time.Second): // Listens for new elevators on the network
-				if peers.IsAlone() {
-					sendJoinMSG()
-				}
-				break
-			}
-
-		}
-	}
-}
-
-// Detects if the node infront of you disconnects, alerts rest of ring
-// That node becomes the master
-func neighbourWatcher() {
-	for {
-		missingIP := messages.ServerDisconnected()
-		fmt.Printf("Disconnect : %s\n", missingIP)
-
-		peers.Remove(missingIP)
-		peers.BecomeHead()
-		nextNode := peers.GetNextNode()
-		messages.ConnectTo(nextNode)
-
-		nodeList := peers.GetAll()
-		nodes, _ := json.Marshal(nodeList)
-		messages.SendMessage(NodeChange, nodes)
-	}
-}
-
-// Updates the ring if a node is added or removed.
-func handleRingChange() {
-	var nodesList []string
-	for {
-		nodes := messages.Receive(NodeChange)
-		json.Unmarshal(nodes, &nodesList)
-		if !peers.IsEqualTo(nodesList) {
-			peers.Set(nodesList)
-			nextNode := peers.GetNextNode()
-			messages.ConnectTo(nextNode)
-			messages.SendMessage(NodeChange, nodes)
 		}
 	}
 }
@@ -155,17 +162,21 @@ func dialBroadcastUDP(port int) net.PacketConn {
 }
 
 // Makes it possible to have timeout on udp read
-func blockingRead(readChn chan<- string) {
+func nonBlockingRead(readChn chan<- string) { // This is iffy, was a quick fix
 	buffer := make([]byte, 100)
 	connRead := dialBroadcastUDP(gBCASTPORT)
 
 	defer connRead.Close()
 	for {
-		n, _, _ := connRead.ReadFrom(buffer[0:])
-		msg := string(buffer[:n])
+		nBytes, _, _ := connRead.ReadFrom(buffer[0:])
+		msg := string(buffer[:nBytes])
 		splittedMsg := strings.SplitN(msg, ":", 2)
-		if splittedMsg[0] == gJOINMESSAGE && splittedMsg[1] != peers.GetRelativeTo(peers.Self, 0) { // Hmmmmmm
-			readChn <- splittedMsg[1]
+		selfIp := peers.GetRelativeTo(peers.Self, 0)
+		receivedJoin := splittedMsg[0]
+		receivedIP := splittedMsg[1]
+
+		if receivedJoin == gJOINMESSAGE && receivedIP != selfIp { // Hmmmmmm
+			readChn <- receivedIP
 		}
 	}
 }

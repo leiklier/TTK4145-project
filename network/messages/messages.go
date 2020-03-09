@@ -8,8 +8,9 @@ import (
 	"net"
 	"time"
 
-	"../peers"
 	"../receivers"
+
+	"../peers"
 )
 
 // Enums
@@ -30,10 +31,12 @@ type Message struct {
 var gIsInitialized = false
 var gPort = 6970
 
+//Public channels
+var DisconnectedFromServerChannel = make(chan string)
+
 // Channels
 var gServerIPChannel = make(chan string)
 var gConnectedToServerChannel = make(chan string)
-var gDisconnectedFromServerChannel = make(chan string)
 
 // TODO: Make these channel names more meaningful
 var gSendForwardChannel = make(chan Message, 100)
@@ -48,10 +51,6 @@ func ConnectTo(IP string) error {
 	case <-time.After(2 * time.Second):
 		return errors.New("TIMED_OUT")
 	}
-}
-
-func ServerDisconnected() string {
-	return <-gDisconnectedFromServerChannel
 }
 
 // SendMessage takes a byte array and sends it
@@ -73,9 +72,9 @@ func SendMessage(purpose string, data []byte) bool {
 	return true
 }
 
-func Receive(purpose string) []byte {
+func GetReceiver(purpose string) chan []byte {
 	initialize()
-	return <-receivers.GetChannel(purpose)
+	return receivers.GetChannel(purpose)
 }
 
 func Start() {
@@ -116,7 +115,7 @@ func handleOutboundConnection(serverIP string, shouldDisconnectChannel chan bool
 		fmt.Printf("messages: lost connection to server with IP %s\n", serverIP)
 		conn.Close()
 		if err != nil {
-			gDisconnectedFromServerChannel <- serverIP
+			DisconnectedFromServerChannel <- serverIP
 		}
 	}()
 

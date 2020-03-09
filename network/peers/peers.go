@@ -241,7 +241,7 @@ func IsHead() bool {
 	return GetRelativeTo(Head, 0) == GetRelativeTo(Tail, 0)
 }
 
-func NextIsTail() bool {
+func IsNextTail() bool {
 	return GetRelativeTo(Self, 1) == GetRelativeTo(Tail, 0)
 }
 

@@ -4,30 +4,47 @@ import (
 	"encoding/json"
 
 	"../network/ring"
-	"../store"
+	"../sync/store"
+	"../sync/elevators"
+)
+
+
+const (
+	State = "State"
+	Call = "Call"
 )
 
 func SendElevState(state store.ElevatorState) bool {
 	stateBytes := json.Marshal(state)
-	return ring.SendMessage(StateChange, stateBytes)
+	return ring.BroadcastMessage(StateChange, stateBytes)
 }
 
-func ReceiveElevState() store.ElevatorState {
-	state := store.ElevatorState
-	stateBytes := ring.Receive(StateChange)
-	json.Unmarshal(stateBytes, &state)
-	return state, true
+func SendHallCall(ip string, hCall elevators.HallCall) bool {
+	hCallBytes, err := json.Marshal(hCall) 
+	if err != nil {
+		return false
+	}
+	return ring.SendToPeer(Call, ip, hCallBytes)
 }
 
-func SendHallCall(ip string, ip string, hCall store.HallCall) bool {
-	hCallBytes, _ := json.Marshal(hCall)
-	return ring.SendDM(Call, ip, hCallBytes)
-}
+func ListenElevatorUpdate() {
+	call_channel = ring.GetReceiver(Call)
+	state_channel = ring.GetReceiver(State)
 
-func ReceiveHallCall() store.HallCall {
-	hCall := store.HallCall
-	hCallBytes := ring.Receive(Call)
+	callMap := make(map[string][]byte)
+	hCall := elevators.HallCall
 
-	json.Unmarshal(hCallBytes, &hCall)
-	return hCall
+	for select {
+		case state := <- state_channel:
+			store.Update(state)
+			break
+		case call := <- call_channel:
+			json.Unmarshal(call, &dataMap)
+			hCallBytes, found := dataMap[selfIP]
+			if found {
+				json.Unmarshal(hCallBytes, hCall)
+				store.AddCall(hCall)
+			}
+			break
+	}
 }
