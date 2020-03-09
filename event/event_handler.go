@@ -7,9 +7,10 @@ import (
 	"os/exec"
 	"runtime"
 	"time"
+
 	"../elevio"
-	"../sync/store"
 	"../sync/elevators"
+	"../sync/store"
 )
 
 const numFloors = 4
@@ -18,7 +19,7 @@ func main() {
 	// Warning for windows users
 	if runtime.GOOS == "windows" {
 		fmt.Println("Can't Execute this on a windows machine")
-		os.Exit(3)JAKVAHa
+		os.Exit(3)
 	}
 	// First we start the server
 	fmt.Println("Starting elevator server ...")
@@ -37,13 +38,13 @@ func main() {
 	drv_floors := make(chan int)
 	drv_obstr := make(chan bool)
 	drv_stop := make(chan bool)
-	dst := make(chan store.Command)	
+	dst := make(chan store.Command)
 
 	go elevio.PollButtons(drv_buttons) // Etasje og hvilken type knapp som blir trykket
 	go elevio.PollFloorSensor(drv_floors)
 	go elevio.PollObstructionSwitch(drv_obstr)
 	go elevio.PollStopButton(drv_stop)
-	
+
 	var d elevio.MotorDirection
 
 	time.Sleep(time.Duration(2 * time.Second))
@@ -60,19 +61,18 @@ func main() {
 			// Setter på lyset
 			light := store.DetermineLight(a.Floor, a.Button)
 			elevio.SetButtonLamp(a.Button, a.Floor, light)
-			
+
 			// Håndtere callen
 			if a.Button == elevio.BT_Cab {
 				store.UpdateCabCalls(a.Floor)
 			} else {
 				elevDir := BtnDirToElevDir(a.Button)
-				mostSuitedIP := store.MostSuitedElevator(a.Floor,elevDir)
-				
-				// Create and send HallCall
-				hc := elevators.HallCall{Direction_e:elevDir,Floor:a.Floor}
-				order_distributor.SendHallCall(mostSuitedIP, hc)		
-			}
+				mostSuitedIP := store.MostSuitedElevator(a.Floor, elevDir)
 
+				// Create and send HallCall
+				hc := elevators.HallCall{Direction_e: elevDir, Floor: a.Floor}
+				order_distributor.SendHallCall(mostSuitedIP, hc)
+			}
 
 		case a := <-drv_obstr: // Looks for obstruction and stops if true
 			fmt.Printf("%+v\n", a)
@@ -157,7 +157,7 @@ func updateFromStore() {
 		elevio.SetDoorOpenLamp(true)
 	}
 }
-func BtnDirToElevDir (btn elevio.ButtonType) (elevators.Direction) {
+func BtnDirToElevDir(btn elevio.ButtonType) elevators.Direction {
 	switch btn {
 	case elevio.BT_HallDown:
 		return elevators.DirectionDown
