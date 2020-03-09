@@ -37,16 +37,13 @@ func main() {
 	drv_floors := make(chan int)
 	drv_obstr := make(chan bool)
 	drv_stop := make(chan bool)
-	dst := make(chan store.Command)
-	FBI_OPEN_UP := make(chan int) // Lytter på etasje
+	dst := make(chan store.Command)	
 
 	go elevio.PollButtons(drv_buttons) // Etasje og hvilken type knapp som blir trykket
 	go elevio.PollFloorSensor(drv_floors)
 	go elevio.PollObstructionSwitch(drv_obstr)
 	go elevio.PollStopButton(drv_stop)
-	go store.GetDestination(dst)
 	
-
 	var d elevio.MotorDirection
 
 	time.Sleep(time.Duration(2 * time.Second))
@@ -60,9 +57,6 @@ func main() {
 		case a := <-drv_buttons: // Just sets the button lamp, need to translate into calls
 			fmt.Println("Noen trykket på en knapp, oh lø!")
 
-			// 1. Finn ut hvilken knappetype det er
-			// Hvis det er cab call, er det bare å oppdatere lys og legge til i liste.
-			
 			// Setter på lyset
 			light := store.DetermineLight(a.Floor, a.Button)
 			elevio.SetButtonLamp(a.Button, a.Floor, light)
@@ -73,10 +67,10 @@ func main() {
 			} else {
 				elevDir := BtnDirToElevDir(a.Button)
 				mostSuitedIP := store.MostSuitedElevator(a.Floor,elevDir)
-
-				order_distributor.SendHallCall(mostSuitedIP, a.Floor)		
-
-
+				
+				// Create and send HallCall
+				hc := elevators.HallCall{Direction_e:elevDir,Floor:a.Floor}
+				order_distributor.SendHallCall(mostSuitedIP, hc)		
 			}
 
 
