@@ -7,9 +7,9 @@ import (
 	"os/exec"
 	"runtime"
 	"time"
-
 	"../elevio"
-	"../store"
+	"../sync/store"
+	"../sync/elevators"
 )
 
 const numFloors = 4
@@ -18,7 +18,7 @@ func main() {
 	// Warning for windows users
 	if runtime.GOOS == "windows" {
 		fmt.Println("Can't Execute this on a windows machine")
-		os.Exit(3)
+		os.Exit(3)JAKVAHa
 	}
 	// First we start the server
 	fmt.Println("Starting elevator server ...")
@@ -29,7 +29,7 @@ func main() {
 	}
 
 	// one goroutine to update store from driver
-	// one gotoutine to run elevator based on store
+	// one goroutine to run elevator based on store
 
 	elevio.Init("localhost:15657", numFloors)
 
@@ -37,14 +37,15 @@ func main() {
 	drv_floors := make(chan int)
 	drv_obstr := make(chan bool)
 	drv_stop := make(chan bool)
-	dst := make(chan store.Command)	
+	dst := make(chan store.Command)
+	FBI_OPEN_UP := make(chan int) // Lytter på etasje
 
-	go elevio.PollButtons(drv_buttons)
+	go elevio.PollButtons(drv_buttons) // Etasje og hvilken type knapp som blir trykket
 	go elevio.PollFloorSensor(drv_floors)
 	go elevio.PollObstructionSwitch(drv_obstr)
 	go elevio.PollStopButton(drv_stop)
 	go store.GetDestination(dst)
-
+	
 
 	var d elevio.MotorDirection
 
@@ -57,8 +58,27 @@ func main() {
 	for {
 		select {
 		case a := <-drv_buttons: // Just sets the button lamp, need to translate into calls
-			light := store.UpdateCalls(a.Floor, a.Button)
+			fmt.Println("Noen trykket på en knapp, oh lø!")
+
+			// 1. Finn ut hvilken knappetype det er
+			// Hvis det er cab call, er det bare å oppdatere lys og legge til i liste.
+			
+			// Setter på lyset
+			light := store.DetermineLight(a.Floor, a.Button)
 			elevio.SetButtonLamp(a.Button, a.Floor, light)
+			
+			// Håndtere callen
+			if a.Button == elevio.BT_Cab {
+				store.UpdateCabCalls(a.Floor)
+			} else {
+				elevDir := BtnDirToElevDir(a.Button)
+				mostSuitedIP := store.MostSuitedElevator(a.Floor,elevDir)
+
+				order_distributor.SendHallCall(mostSuitedIP, a.Floor)		
+
+
+			}
+
 
 		case a := <-drv_obstr: // Looks for obstruction and stops if true
 			fmt.Printf("%+v\n", a)
@@ -141,5 +161,16 @@ func updateFromStore() {
 	elevio.SetButtonLamp(elevio.BT_Cab, floor, false)
 	if dir == 0 {
 		elevio.SetDoorOpenLamp(true)
+	}
+}
+func BtnDirToElevDir (btn elevio.ButtonType) (elevators.Direction) {
+	switch btn {
+	case elevio.BT_HallDown:
+		return elevators.DirectionDown
+	case elevio.BT_HallUp:
+		return elevators.DirectionUp
+	default:
+		fmt.Println("Invalid use, must be either up or down")
+		return elevators.DirectionIdle
 	}
 }

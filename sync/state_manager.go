@@ -106,34 +106,49 @@ func UpdateDirectionState(direction Direction) {
 	}
 }
 
-func UpdateCalls(floor int, btn_type elevio.ButtonType) bool {
+	func DetermineLight(floor int) bool {
 	if floor == localElevator.Current_floor && localElevator.GDirection == 0 {
 		fmt.Println("Same floor")
 		return false // If elevator is standing still and at floor, dont accept
 	}
+	return true
+}
+
+func HandleButtonInformation(floor int, btn_type elevio.ButtonType) {
+	mutex.Lock()
+	defer mutex.Unlock()
+	// CabCall
 	if btn_type == elevio.BT_Cab {
 		if floor <= numFloors || floor >= 0 { // For cab calls
-			mutex.Lock()
-			defer mutex.Unlock()
 			if localElevator.Cab_calls[floor] {
 				localElevator.Cab_calls[floor] = false
 			} else {
 				localElevator.Cab_calls[floor] = true
 			}
+		} else {
+			fmt.Println("Invalid floor")
+			// Mby do something??
 		}
-	} else {
 
+	} else {
+		// HallCall
 		current_call := localElevator.Hall_calls[floor] // For hall calls
 
-		if current_call == HC_down && btn_type == HC_up {
-			localElevator.Hall_calls[floor] = HC_both
-		} else if current_call == HC_up && btn_type == HC_down {
-			localElevator.Hall_calls[floor] = HC_both
-		} else {
-			localElevator.Hall_calls[floor] = HallCall(btn_type)
-		}
 	}
-	return true
+
+}
+func UpdateCabCalls(floor int) {
+	if floor <= numFloors || floor >= 0 { // For cab calls
+		if localElevator.Cab_calls[floor] {
+			localElevator.Cab_calls[floor] = false
+		} else {
+			localElevator.Cab_calls[floor] = true
+		}
+	} else {
+		fmt.Println("Invalid floor")
+		// Mby do something??
+	}
+
 }
 
 func OpenDoor(door_state bool) {
