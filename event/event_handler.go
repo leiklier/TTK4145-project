@@ -7,9 +7,10 @@ import (
 	"os/exec"
 	"runtime"
 	"time"
+
 	"../elevio"
-	"../sync/store"
 	"../sync/elevators"
+	"../sync/store"
 )
 
 const numFloors = 4
@@ -18,7 +19,7 @@ func main() {
 	// Warning for windows users
 	if runtime.GOOS == "windows" {
 		fmt.Println("Can't Execute this on a windows machine")
-		os.Exit(3)JAKVAHa
+		os.Exit(3)
 	}
 	// First we start the server
 	fmt.Println("Starting elevator server ...")
@@ -38,14 +39,11 @@ func main() {
 	drv_obstr := make(chan bool)
 	drv_stop := make(chan bool)
 	dst := make(chan store.Command)
-	FBI_OPEN_UP := make(chan int) // Lytter på etasje
 
 	go elevio.PollButtons(drv_buttons) // Etasje og hvilken type knapp som blir trykket
 	go elevio.PollFloorSensor(drv_floors)
 	go elevio.PollObstructionSwitch(drv_obstr)
 	go elevio.PollStopButton(drv_stop)
-	go store.GetDestination(dst)
-	
 
 	var d elevio.MotorDirection
 
@@ -60,25 +58,21 @@ func main() {
 		case a := <-drv_buttons: // Just sets the button lamp, need to translate into calls
 			fmt.Println("Noen trykket på en knapp, oh lø!")
 
-			// 1. Finn ut hvilken knappetype det er
-			// Hvis det er cab call, er det bare å oppdatere lys og legge til i liste.
-			
 			// Setter på lyset
 			light := store.DetermineLight(a.Floor, a.Button)
 			elevio.SetButtonLamp(a.Button, a.Floor, light)
-			
+
 			// Håndtere callen
 			if a.Button == elevio.BT_Cab {
 				store.UpdateCabCalls(a.Floor)
 			} else {
 				elevDir := BtnDirToElevDir(a.Button)
-				mostSuitedIP := store.MostSuitedElevator(a.Floor,elevDir)
+				mostSuitedIP := store.MostSuitedElevator(a.Floor, elevDir)
 
-				order_distributor.SendHallCall(mostSuitedIP, a.Floor)		
-
-
+				// Create and send HallCall
+				hc := elevators.HallCall{Direction_e: elevDir, Floor: a.Floor}
+				order_distributor.SendHallCall(mostSuitedIP, hc)
 			}
-
 
 		case a := <-drv_obstr: // Looks for obstruction and stops if true
 			fmt.Printf("%+v\n", a)
@@ -163,7 +157,7 @@ func updateFromStore() {
 		elevio.SetDoorOpenLamp(true)
 	}
 }
-func BtnDirToElevDir (btn elevio.ButtonType) (elevators.Direction) {
+func BtnDirToElevDir(btn elevio.ButtonType) elevators.Direction {
 	switch btn {
 	case elevio.BT_HallDown:
 		return elevators.DirectionDown

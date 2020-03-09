@@ -11,14 +11,9 @@ import(
 var gState = []elevators.Elevator_s
 var gStateMutex sync.Mutex
 
-var gIsInitialized = false
 const NumFloors = 4
 
-func initialize() {
-	if gIsInitialized {
-		return
-	}
-
+func init() {
 	gStateMutex.Lock()
 	defer gStateMutex.Unlock()
 	gIsInitialized = true
@@ -33,8 +28,6 @@ func initialize() {
 }
 
 func Add(newElevator elevators.Elevator_s) error {
-	initialize()
-
 	gStateMutex.Lock()
 	defer gStateMutex.Unlock()
 
@@ -48,8 +41,6 @@ func Add(newElevator elevators.Elevator_s) error {
 }
 
 func Remove(ipToRemove string) {
-	initialize()
-
 	gStateMutex.Lock()
 	defer gStateMutex.Unlock()
 
@@ -72,8 +63,6 @@ func getElevator(elevatorIP string) (elevators.Elevator_s, error) {
 }
 
 func GetCurrentFloor(elevatorIP string)  (int, error) {
-	initialize()
-
 	gStateMutex.Lock()
 	defer gStateMutex.Unlock()
 
@@ -86,8 +75,6 @@ func GetCurrentFloor(elevatorIP string)  (int, error) {
 }
 
 func SetCurrentFloor(elevatorIP string, currentFloor int) error {
-	initialize()
-
 	gStateMutex.Lock()
 	defer gStateMutex.Unlock()
 
@@ -100,9 +87,7 @@ func SetCurrentFloor(elevatorIP string, currentFloor int) error {
 	return nil
 }
 
-func GetDirectionMoving(elevatorIP string)  (elevators.Direction, error) {
-	initialize()
-
+func GetDirectionMoving(elevatorIP string)  (elevators.Direction_e, error) {
 	gStateMutex.Lock()
 	defer gStateMutex.Unlock()
 
@@ -114,7 +99,7 @@ func GetDirectionMoving(elevatorIP string)  (elevators.Direction, error) {
 	return elevator.GetDirectionMoving(), nil
 }
 
-func SetDirectionMoving(elevatorIP string, newDirection elevators.Direction) error {
+func SetDirectionMoving(elevatorIP string, newDirection elevators.Direction_e) error {
 	gStateMutex.Lock()
 	defer gStateMutex.Unlock()
 
@@ -127,7 +112,7 @@ func SetDirectionMoving(elevatorIP string, newDirection elevators.Direction) err
 	return nil
 }
 
-func AddHallCall(elevatorIP string, floor int, direction elevators.Direction) error {
+func AddHallCall(elevatorIP string, hallCall elevators.HallCall_s) error {
 	gStateMutex.Lock()
 	defer gStateMutex.Unlock()
 
@@ -137,10 +122,7 @@ func AddHallCall(elevatorIP string, floor int, direction elevators.Direction) er
 	}
 
 
-	err = elevator.AddHallCall(floor, direction)
-	if err != nil {
-		return err
-	}
+	elevator.AddHallCall(hallCall)
 
 	return nil
 }
@@ -154,10 +136,7 @@ func RemoveHallCalls(elevatorIP string, floor int) error {
 		return err
 	}
 
-	err = elevator.RemoveHallCalls(floor)
-	if err != nil {
-		return err
-	}
+	elevator.RemoveHallCalls(floor)
 
 	return nil
 }
@@ -171,10 +150,7 @@ func AddCabCall(elevatorIP string, floor int) error {
 		return err
 	}
 
-	err = elevator.AddCabCall(floor)
-	if err != nil {
-		return err
-	}
+	elevator.AddCabCall(floor)
 
 	return nil
 
@@ -189,12 +165,7 @@ func RemoveCabCall(elevatorIP string, floor int) error {
 		return err
 	}
 
-	err = elevator.RemoveCabCall(floor)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	elevator.RemoveCabCall(floor)
 
 }
 
