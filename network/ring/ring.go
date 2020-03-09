@@ -20,14 +20,10 @@ const gTIMEOUT = 2
 const gJOINMESSAGE = "JOIN"
 const NodeChange = "NodeChange"
 
-var isInitialized = false
+var NewNeighbourNode = make(chan string)
 
 // Initializes the network if it's present. Establishes a new network if not
 func Init() {
-	if isInitialized {
-		return
-	}
-	isInitialized = true
 	messages.Start()
 	go ringWatcher()
 	go handleJoin()
@@ -38,12 +34,10 @@ func Init() {
 //////////////////////////////////////////////
 
 func BroadcastMessage(purpose string, data []byte) bool {
-	Init()
 	return messages.SendMessage(purpose, data)
 }
 
 func GetReceiver(purpose string) chan<- []byte {
-	Init()
 	return messages.GetReceiver(purpose)
 }
 
@@ -105,7 +99,7 @@ func ringWatcher() {
 
 			peers.Remove(disconnectedIP)
 			peers.BecomeHead()
-			nextNode := peers.GetNextNode()
+			nextNode := peers.GetNextPeer()
 			messages.ConnectTo(nextNode)
 
 			nodeList := peers.GetAll()
@@ -117,10 +111,13 @@ func ringWatcher() {
 			json.Unmarshal(nodeBytes, &nodesList)
 			if !peers.IsEqualTo(nodesList) {
 				peers.Set(nodesList)
-				nextNode := peers.GetNextNode()
+				nextNode := peers.GetNextPeer()
 				messages.ConnectTo(nextNode)
 				messages.SendMessage(NodeChange, nodeBytes)
 			}
+			break
+		case addedNode := <-peers.AddedNextChannel:
+			NewNeighbourNode <- addedNode
 			break
 		}
 	}

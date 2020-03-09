@@ -14,10 +14,11 @@ const (
 	Call = "Call"
 )
 
-func SendElevState(state store.ElevatorState) bool {
-	stateBytes := json.Marshal(state)
-	return ring.BroadcastMessage(StateChange, stateBytes)
+func SendElevState(states elevators.Elevator_s) bool {
+	stateBytes := json.Marshal(states)
+	return ring.BroadcastMessage(State, stateBytes)
 }
+
 
 func SendHallCall(ip string, hCall elevators.HallCall) bool {
 	hCallBytes, err := json.Marshal(hCall) 
@@ -32,12 +33,13 @@ func ListenElevatorUpdate() {
 	state_channel = ring.GetReceiver(State)
 
 	callMap := make(map[string][]byte)
+	states := elevators.Elevator_s
 	hCall := elevators.HallCall
 
 	for select {
-		case state := <- state_channel:
-			store.Update(state)
-			// watchdog.AddState(state)
+		case stateBytes := <- state_channel:
+			json.Unmarshal(stateBytes, &states)
+			store.Update(states)
 			break
 		case call := <- call_channel:
 			json.Unmarshal(call, &dataMap)
@@ -46,6 +48,12 @@ func ListenElevatorUpdate() {
 				json.Unmarshal(hCallBytes, &hCall)
 				store.AddCall(hCall)
 			}
+		case newIP := <- ring.NewNeighbourNode:
+			allStates := store.GetAll()
+			for state in allStates{
+				ring.SendElevState(state)
+			}
 			break
+
 	}
 }
