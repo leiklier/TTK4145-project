@@ -17,6 +17,8 @@ import (
 
 const numFloors = 4
 
+var selfIP = peers.GetRelativeTo(peers.Self, 0)
+
 // RunElevator Her skjer det
 func RunElevator() {
 	// Warning for windows users
@@ -36,7 +38,6 @@ func RunElevator() {
 	// one goroutine to run elevator based on store
 
 	elevio.Init("localhost:15657", numFloors)
-	selfIP := peers.GetRelativeTo(peers.Self, 0)
 
 	drv_buttons := make(chan elevio.ButtonEvent)
 	drv_floors := make(chan int)
@@ -110,64 +111,39 @@ func RunElevator() {
 
 func goToFloor(dest_floor int, current_floor int, drv_floors <-chan int) { // Probably add a timeout'
 
-	elevio.SetDoorOpenLamp(false)
+	direction := elevators.DirectionIdle
 
 	if current_floor < dest_floor {
-		elevio.SetMotorDirection(elevators.Elevator_s)
-		store.UpdateDirectionState(store.Direction(elevators.Direction_e))
-		for {
-			select {
-			case a := <-drv_floors: // Wait for elevator to reach floor
-				elevio.SetFloorIndicator(a)
-				if a == dest_floor {
-					store.UpdateFloorState(a)
-					elevio.SetMotorDirection(elevio.MD_Stop) // Stop elevator and set lamps and stuff
-					store.UpdateDirectionState(store.Direction(elevio.MD_Stop))
-					updateFromStore()
-
-					elevio.SetDoorOpenLamp(true)
-					store.OpenDoor(true)
-					time.Sleep(3 * time.Second)
-					store.OpenDoor(false)
-					elevio.SetDoorOpenLamp(false)
-					return
-				}
-			}
-		}
+		direction = elevators.DirectionUp
 	} else if current_floor > dest_floor {
-		elevio.SetMotorDirection(elevio.MD_Down)
-		store.UpdateDirectionState(store.Direction(elevio.MD_Down))
-		for {
-			select {
-			case a := <-drv_floors: // Wait for elevator to reach floor
-				elevio.SetFloorIndicator(a)
-				if a == dest_floor {
-					store.UpdateFloorState(a)
-					elevio.SetMotorDirection(elevio.MD_Stop) // Stop elevator and set lamps and stuff
-					store.UpdateDirectionState(store.Direction(elevio.MD_Stop))
-					updateFromStore()
+		direction = elevators.DirectionDown
+	}
 
-					elevio.SetDoorOpenLamp(true)
-					store.OpenDoor(true)
-					time.Sleep(3 * time.Second)
-					store.OpenDoor(false)
-					elevio.SetDoorOpenLamp(false)
-					return
-				}
+	elevio.SetMotorDirection(direction)
+	store.SetDirectionMoving(selfIP, direction)
+	for {
+		select {
+		case floor := <-drv_floors: // Wait for elevator to reach floor
+			elevio.SetFloorIndicator(floor)
+			if floor == dest_floor {
+				arrivedAtFloor(floor)
+				return
 			}
 		}
 	}
 }
 
-func updateFromStore() {
-	floor, dir := store.GetFloorAndDir()
+func arrivedAtFloor(floor int) {
+	store.SetCurrentFloor(selfIP, floor)
+	elevio.SetMotorDirection(elevators.DirectionIdle) // Stop elevator and set lamps and stuff
+	store.SetDirectionMoving(selfIP, elevators.DirectionIdle)
 	elevio.SetFloorIndicator(floor)
 	elevio.SetButtonLamp(elevio.BT_HallUp, floor, false)
 	elevio.SetButtonLamp(elevio.BT_HallDown, floor, false)
 	elevio.SetButtonLamp(elevio.BT_Cab, floor, false)
-	if dir == 0 {
-		elevio.SetDoorOpenLamp(true)
-	}
+	elevio.SetDoorOpenLamp(true)
+	time.Sleep(3 * time.Second)
+	elevio.SetDoorOpenLamp(false)
 }
 func BtnDirToElevDir(btn elevio.ButtonType) elevators.Direction_e {
 	switch btn {

@@ -41,16 +41,16 @@ func ListenElevatorUpdate() {
 		select {
 		case stateBytes := <-state_channel:
 			json.Unmarshal(stateBytes, &states)
-			store.Update(states)
+			// store.Update(states)
 			break
 		case call := <-call_channel:
 			json.Unmarshal(call, &callMap)
 			hCallBytes, found := callMap[selfIP]
 			if found {
 				json.Unmarshal(hCallBytes, &hCall)
-				store.AddHallCall(hCall)
+				store.AddHallCall(selfIP, hCall)
 			}
-		case newIP := <-ring.NewNeighbourNode:
+		case <-ring.NewNeighbourNode: // Do something with the newIP, eg add elevator state
 			allStates := store.GetAll()
 			for _, state := range allStates {
 				SendElevState(state)
