@@ -22,14 +22,14 @@ func SubscribeToDestinationUpdates(nextFloor chan int) {
 		// Bottom floor
 		case 0:
 			nearestCab := 0
-			for i,cab range := cabCalls {
+			for i,cab := range cabCalls {
 				if cab {
 					nearestCab = i
 					break
 				}
 			}
 			nearestHall := 0
-			for i,hc range := hallCalls {
+			for i,hc := range hallCalls {
 				if hc.Direction_e != elevators.DirectionIdle {
 					nearestHall = i
 					break
@@ -37,8 +37,7 @@ func SubscribeToDestinationUpdates(nextFloor chan int) {
 			}
 			if nearestCab < nearestHall {
 				nextFloor <- nearestCab
-			}
-			else if nearestHall < nearestCab {
+			}else if nearestHall < nearestCab {
 				nextFloor <- nearestHall
 			}else {
 				nextFloor <- nearestCab // Spiller ingen rolle
@@ -47,14 +46,14 @@ func SubscribeToDestinationUpdates(nextFloor chan int) {
 		// Top floor
 		case NumFloors -1:
 			nearestCab := NumFloors + 1 // høyere enn høyest
-			for (i := NumFloors-1; i >= 0; i--) {
+			for i := NumFloors-1; i >= 0; i-- {
 				if cabCalls[i] {
 					nearestCab = i
 					break
 				}
 			}
 			nearestHall := NumFloors + 1 // Høyere enn høyest
-			for (i := NumFloors-1; i >= 0; i--) {
+			for i := NumFloors-1; i >= 0; i-- {
 				if hallCalls[i].Direction_e != elevators.DirectionIdle {
 					nearestHall = i
 					break
@@ -62,8 +61,7 @@ func SubscribeToDestinationUpdates(nextFloor chan int) {
 			}
 			if nearestCab < nearestHall {
 				nextFloor <- nearestCab
-			}
-			else if nearestHall < nearestCab {
+			}else if nearestHall < nearestCab {
 				nextFloor <- nearestHall
 			}else {
 				nextFloor <- nearestCab // Spiller ingen rolle
@@ -75,7 +73,7 @@ func SubscribeToDestinationUpdates(nextFloor chan int) {
 				
 				// Cabcheck:
 				nextCab := NumFloors +1 // Defaulter med noe som er for høyt
-				for i,cab range := cabCalls {
+				for i,cab := range cabCalls {
 					if (i <= currFloor){
 						continue // Vi sjekker kun oppover
 					}else {
@@ -87,7 +85,7 @@ func SubscribeToDestinationUpdates(nextFloor chan int) {
 				}
 				if nextCab == NumFloors +1 {
 					// Ingenting oppover, vi sjekker nedover.
-					for (i := NumFloors-1; i >= 0; i--){
+					for i := NumFloors-1; i >= 0; i--){
 						if (i >= currFloor) {
 							continue // Sjekker kun nedover
 						}else {
@@ -103,7 +101,7 @@ func SubscribeToDestinationUpdates(nextFloor chan int) {
 				// Hallcheck:
 				nextHall := NumFloors + 1
 				sameDirection := false // Vil helst ha oppover	
-				for i,hc range := hallCalls {
+				for i,hc := range hallCalls {
 					if (i <= currFloor){
 						continue // Vi sjekker kun oppover
 					}else {
@@ -121,7 +119,7 @@ func SubscribeToDestinationUpdates(nextFloor chan int) {
 				}
 				if nextHall == NumFloors + 1 {
 					// Ingenting oppover, vi sjekker nedover.
-					for (i := NumFloors-1; i >= 0; i--){
+					for i := NumFloors-1; i >= 0; i--{
 						if (i >= currFloor) {
 							continue // Sjekker kun nedover
 						}else {
@@ -151,15 +149,14 @@ func SubscribeToDestinationUpdates(nextFloor chan int) {
 						nextFloor <- nextHall
 					}
 				}
-				if 
-				}
+				
 			}else if currFloor < prevFloor {
 				// Vi skal nedover dersom det er noe å ta nedover
 				
 				//Cabcheck:
 				nextCab := NumFloors + 1 // Default for høyt
-				for (i := NumFloors-1; i >=0; i--) {
-					for (i := NumFloors-1; i >= 0; i--){
+				for i := NumFloors-1; i >=0; i-- {
+					for i := NumFloors-1; i >= 0; i--{
 						if (i >= currFloor) {
 							continue // Sjekker kun nedover
 						}else {
@@ -172,7 +169,7 @@ func SubscribeToDestinationUpdates(nextFloor chan int) {
 				}
 				if nextCab == NumFloors +1 {
 					// Ingenting nedover, vi sjekker oppover
-					for i,cab range := cabCalls {
+					for i,cab := range cabCalls {
 						if (i <= currFloor){
 							continue // Vi sjekker kun oppover
 						}else {
@@ -188,7 +185,7 @@ func SubscribeToDestinationUpdates(nextFloor chan int) {
 				//Hallcheck
 				nextHall := NumFloors +1
 				sameDirection := false // Vil helst ha nedover
-				for (i := NumFloors-1; i >= 0; i--){
+				for i := NumFloors-1; i >= 0; i--){
 					if (i >= currFloor) {
 						continue // Sjekker kun nedover
 					}else {
@@ -204,7 +201,7 @@ func SubscribeToDestinationUpdates(nextFloor chan int) {
 				}
 				if nextHall == NumFloors +1 {
 					// Ingenting nedover, vi sjekker oppover 
-					for i,hc range := hallCalls {
+					for i,hc := range hallCalls {
 						if (i <= currFloor){
 							continue // Vi sjekker kun oppover
 						}else {
