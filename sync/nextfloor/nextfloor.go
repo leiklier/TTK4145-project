@@ -32,21 +32,24 @@ func SubscribeToDestinationUpdates(nextFloor chan int) {
 		switch currFloor {
 		// Bottom floor
 		case 0:
-			nearestCab := 0
+			nearestCab := store.NumFloors + 1
 			for i, cab := range cabCalls {
 				if cab {
 					nearestCab = i
 					break
 				}
 			}
-			nearestHall := 0
+			nearestHall := store.NumFloors + 1
 			for i, hc := range hallCalls {
 				if hc.Direction != elevators.DirectionIdle {
 					nearestHall = i
 					break
 				}
 			}
-			if nearestCab < nearestHall {
+			if nearestCab == store.NumFloors +1 && nearestHall ==store.NumFloors +1 {
+				// Nothing has changed.
+				nextFloor <- currFloor
+			}else if nearestCab < nearestHall {
 				nextFloor <- nearestCab
 			} else if nearestHall < nearestCab {
 				nextFloor <- nearestHall
@@ -70,7 +73,10 @@ func SubscribeToDestinationUpdates(nextFloor chan int) {
 					break
 				}
 			}
-			if nearestCab < nearestHall {
+
+			if nearestCab == store.NumFloors + 1 && nearestHall== store.NumFloors + 1 {
+				nextFloor <- currFloor	
+			} else if nearestCab < nearestHall {
 				nextFloor <- nearestCab
 			} else if nearestHall < nearestCab {
 				nextFloor <- nearestHall
@@ -304,5 +310,26 @@ func SubscribeToDestinationUpdates(nextFloor chan int) {
 		// tømmer alle på et gulv er det umulig at det er noe ordre å ta på dette
 		// gulvet
 
+	}
+}
+
+func SubscribeToDestinationUpdates2(nextFloor <-chan int) {
+	for {
+		time.Sleep(time.Duration(2 * time.Second))
+
+		cabCalls, _ := store.GetAllCabCalls(selfIP)
+		hallCalls, _ := store.GetAllHallCalls(selfIP)
+		currDir, _ := store.GetDirectionMoving(selfIP)
+
+		switch currDir {
+		case elevators.DirectionDown:
+			// Do smth
+		case elevators.DirectionUp:
+			// Do smth
+		case elevators.DirectionIdle:
+			// So smth
+		default:
+			// Da må det vel være dir both da.. det er jo litt synd om det skjer
+		}
 	}
 }
