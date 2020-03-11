@@ -1,3 +1,7 @@
 package watchdog
 
-// func
+import "../elevators"
+
+func watchHallCall(hCall elevators.HallCall_s) {
+
+}

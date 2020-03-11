@@ -1,12 +1,12 @@
 package main
 
 import (
-	"time"
-
+	"./event_handler"
 	"./network/ring"
 )
 
 func main() {
-	time.Sleep(1 * time.Second)
 	ring.Init()
+	event_handler.RunElevator()
+
 }
