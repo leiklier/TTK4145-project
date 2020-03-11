@@ -3,15 +3,14 @@ package event_handler
 import (
 	"fmt"
 	"log"
-	"os"
 	"os/exec"
-	"runtime"
 	"time"
 
 	"../elevio"
 	"../network/peers"
 	"../order_distributor"
 	"../sync/elevators"
+	"../sync/nextfloor"
 	"../sync/store"
 )
 
@@ -21,11 +20,7 @@ var selfIP = peers.GetRelativeTo(peers.Self, 0)
 
 // RunElevator Her skjer det
 func RunElevator() {
-	// Warning for windows users
-	if runtime.GOOS == "windows" {
-		fmt.Println("Can't Execute this on a windows machine")
-		os.Exit(3)
-	}
+
 	// First we start the server
 	fmt.Println("Starting elevator server ...")
 	err := (exec.Command("gnome-terminal", "-x", "/home/student/ElevatorServer")).Run()
@@ -34,9 +29,6 @@ func RunElevator() {
 		log.Fatal(err)
 	}
 
-	// one goroutine to update store from driver
-	// one goroutine to run elevator based on store
-
 	elevio.Init("localhost:15657", numFloors)
 
 	drv_buttons := make(chan elevio.ButtonEvent)
@@ -44,21 +36,20 @@ func RunElevator() {
 	drv_obstr := make(chan bool)
 	drv_stop := make(chan bool)
 	// dst := make(chan store.Command)
-	update := make(chan bool)
 	nextFloor := make(chan int)
 
 	go elevio.PollButtons(drv_buttons) // Etasje og hvilken type knapp som blir trykket
 	go elevio.PollFloorSensor(drv_floors)
 	go elevio.PollObstructionSwitch(drv_obstr)
 	go elevio.PollStopButton(drv_stop)
-
-	var d elevators.Direction_e
+	go nextfloor.SubscribeToDestinationUpdates(nextFloor)
 
 	time.Sleep(time.Duration(2 * time.Second))
 	fmt.Println("Elevator server is running")
 
 	// Initialize all elevators at the bottom when the program is first run.
-	goToFloor(0, numFloors, drv_floors)
+	store.SetCurrentFloor(selfIP, store.NumFloors)
+	goToFloor(0, drv_floors)
 
 	for {
 		select {
@@ -89,33 +80,27 @@ func RunElevator() {
 		// 		elevio.SetMotorDirection(d)
 		// 	}
 
-		case a := <-drv_stop:
+		case a := <-drv_stop: // What happens here?
 			fmt.Printf("%+v\n", a)
-			for f := 0; f < numFloors; f++ {
+			for f := 0; f < store.NumFloors; f++ {
 				for b := elevio.ButtonType(0); b < 3; b++ {
 					elevio.SetButtonLamp(b, f, false)
 				}
 			}
 
-		case a := <-update:
-			if a == false {
-				// Do nothing
-			} else {
-
-			}
-		case a := <-nextFloor:
-			go goToFloor(a.DstFloor, a.CurFloor, drv_floors) // Må endre parametre
+		case floor := <-nextFloor:
+			go goToFloor(floor, drv_floors)
 		}
 	}
 }
 
-func goToFloor(dest_floor int, current_floor int, drv_floors <-chan int) { // Probably add a timeout'
+func goToFloor(destinationFloor int, drv_floors <-chan int) { // Probably add a timeout'
 
 	direction := elevators.DirectionIdle
-
-	if current_floor < dest_floor {
+	currentFloor, _ := store.GetCurrentFloor(selfIP)
+	if currentFloor < destinationFloor {
 		direction = elevators.DirectionUp
-	} else if current_floor > dest_floor {
+	} else if currentFloor > destinationFloor {
 		direction = elevators.DirectionDown
 	}
 
@@ -125,7 +110,7 @@ func goToFloor(dest_floor int, current_floor int, drv_floors <-chan int) { // Pr
 		select {
 		case floor := <-drv_floors: // Wait for elevator to reach floor
 			elevio.SetFloorIndicator(floor)
-			if floor == dest_floor {
+			if floor == destinationFloor {
 				arrivedAtFloor(floor)
 				return
 			}
