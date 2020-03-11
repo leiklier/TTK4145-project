@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"../elevio"
+	"../network/peers"
+	"../order_distributor"
 	"../sync/elevators"
 	"../sync/store"
 )
@@ -34,6 +36,7 @@ func RunElevator() {
 	// one goroutine to run elevator based on store
 
 	elevio.Init("localhost:15657", numFloors)
+	selfIP := peers.GetRelativeTo(peers.Self, 0)
 
 	drv_buttons := make(chan elevio.ButtonEvent)
 	drv_floors := make(chan int)
@@ -48,7 +51,7 @@ func RunElevator() {
 	go elevio.PollObstructionSwitch(drv_obstr)
 	go elevio.PollStopButton(drv_stop)
 
-	var d elevio.MotorDirection
+	var d elevators.Direction_e
 
 	time.Sleep(time.Duration(2 * time.Second))
 	fmt.Println("Elevator server is running")
@@ -62,28 +65,28 @@ func RunElevator() {
 			fmt.Println("Noen trykket på en knapp, oh lø!")
 
 			// Setter på lyset
-			light := store.DetermineLight(a.Floor, a.Button)
-			elevio.SetButtonLamp(a.Button, a.Floor, light)
+			// light := store.DetermineLight(a.Floor, a.Button)
+			// elevio.SetButtonLamp(a.Button, a.Floor, light)
 
 			// Håndtere callen
 			if a.Button == elevio.BT_Cab {
-				store.UpdateCabCalls(a.Floor)
+				store.AddCabCall(selfIP, a.Floor)
 			} else {
 				elevDir := BtnDirToElevDir(a.Button)
 				mostSuitedIP := store.MostSuitedElevator(a.Floor, elevDir)
 
 				// Create and send HallCall
-				hc := elevators.HallCall{Direction_e: elevDir, Floor: a.Floor}
+				hc := elevators.HallCall_s{Floor: a.Floor, Direction: elevDir}
 				order_distributor.SendHallCall(mostSuitedIP, hc)
 			}
 
-		case a := <-drv_obstr: // Looks for obstruction and stops if true
-			fmt.Printf("%+v\n", a)
-			if a {
-				elevio.SetMotorDirection(elevio.MD_Stop)
-			} else {
-				elevio.SetMotorDirection(d)
-			}
+		// case a := <-drv_obstr: // Looks for obstruction and stops if true
+		// 	fmt.Printf("%+v\n", a)
+		// 	if a {
+		// 		elevio.SetMotorDirection(elevio.MD_Stop)
+		// 	} else {
+		// 		elevio.SetMotorDirection(d)
+		// 	}
 
 		case a := <-drv_stop:
 			fmt.Printf("%+v\n", a)
@@ -110,8 +113,8 @@ func goToFloor(dest_floor int, current_floor int, drv_floors <-chan int) { // Pr
 	elevio.SetDoorOpenLamp(false)
 
 	if current_floor < dest_floor {
-		elevio.SetMotorDirection(elevio.MD_Up)
-		store.UpdateDirectionState(store.Direction(elevio.MD_Up))
+		elevio.SetMotorDirection(elevators.Elevator_s)
+		store.UpdateDirectionState(store.Direction(elevators.Direction_e))
 		for {
 			select {
 			case a := <-drv_floors: // Wait for elevator to reach floor
@@ -166,7 +169,7 @@ func updateFromStore() {
 		elevio.SetDoorOpenLamp(true)
 	}
 }
-func BtnDirToElevDir(btn elevio.ButtonType) elevators.Direction {
+func BtnDirToElevDir(btn elevio.ButtonType) elevators.Direction_e {
 	switch btn {
 	case elevio.BT_HallDown:
 		return elevators.DirectionDown
