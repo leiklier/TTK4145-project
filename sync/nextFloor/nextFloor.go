@@ -75,6 +75,7 @@ func SubscribeToDestinationUpdates(nextFloor chan int) {
 			}
 
 		default:
+			// Moving up
 			if currFloor > prevFloor {
 				// Vi skal opp dersom det er noe å ta oppover
 
@@ -112,9 +113,6 @@ func SubscribeToDestinationUpdates(nextFloor chan int) {
 					} else {
 						if hc.Direction_e != elevators.DirectionIdle {
 							nextHall = i
-							// Setter at det er samme retning om det er oppover, ELLER at det er i
-							// 4 etasje. Kan breake bare om det er samme retning, fordi da er det
-							// nærmest og rett retning= optimalt!
 							sameDirection = (hc.Direction_e == elevators.DirectionUp || i == store.NumFloors-1)
 							if sameDirection {
 								break
@@ -130,9 +128,6 @@ func SubscribeToDestinationUpdates(nextFloor chan int) {
 						} else {
 							if hallCalls[i].Direction_e != elevators.DirectionIdle {
 								nextHall = i
-								// Her spiller retningen på HC ingen rolle, ettersom vi må
-								// nedover uansett. Vi lar det forbli default, false og
-								// kan trygt breake ut
 								break
 							}
 						}
@@ -141,20 +136,35 @@ func SubscribeToDestinationUpdates(nextFloor chan int) {
 				// Hallcheck over
 
 				// Sammenlikne
+				// Det er ingenting å gjøre, nextfloor er da currentfloor
 				if nextCab == store.NumFloors+1 && nextHall == store.NumFloors+1 {
-					// Det er ingenting å gjøre, nextfloor er da currentfloor
 					nextFloor <- currFloor
-				}
 
-				if nextCab > currFloor && nextHall > currFloor && sameDirection {
-					// Finne ut hvilke som er nermest
-					if nextCab < nextHall {
+					// Oppover sjekking
+				} else if nextCab > currFloor || nextHall > currFloor {
+					// Begge oppfylt, HallCall samme retning, begge like aktuelle
+					if nextCab > currFloor && nextHall > currFloor && sameDirection {
+						// Finne ut hvilke som er nermest
+						if nextCab < nextHall {
+							nextFloor <- nextCab
+						} else {
+							nextFloor <- nextHall
+						}
+
+						// Begge oppfylt, men HallCall i feil retning
+					} else if nextCab > currFloor && nextHall > currFloor && !sameDirection {
+						// Da er cabCall vi henter.
 						nextFloor <- nextCab
+						// HallCall i samme retning oppfylt
 					} else {
 						nextFloor <- nextHall
 					}
+					// HallCall i motsatt retning
+				} else if nextHall > currFloor && !sameDirection {
+
 				}
 
+				// Moving  down
 			} else if currFloor < prevFloor {
 				// Vi skal nedover dersom det er noe å ta nedover
 
@@ -212,9 +222,6 @@ func SubscribeToDestinationUpdates(nextFloor chan int) {
 						} else {
 							if hc.Direction_e != elevators.DirectionIdle {
 								nextHall = i
-								// Her spiller retningen på HC ingen rolle, ettersom vi må
-								// oppover uansett. Vi lar det forbli default, false og
-								// kan trygt breake ut
 								break
 							}
 						}
@@ -229,9 +236,4 @@ func SubscribeToDestinationUpdates(nextFloor chan int) {
 		}
 
 	}
-
-	// NB!! Må bestemme oss for clear variant. Dersom vi
-	// tømmer alle på et gulv er det umulig at det er noe ordre å ta på dette
-	// gulvet
-
 }
