@@ -7,7 +7,7 @@ import (
 )
 
 // Returns IP address of most suited elevator to handle hallcal
-func MostSuitedElevator(allElevators []elevators.Elevator_s, numFloors int, hcFloor int, hcDirection elevators.HCDirection_e) string {
+func MostSuitedElevator(allElevators []elevators.Elevator_s, numFloors int, hcFloor int, hcDirection elevators.Direction_e) string {
 	// Steg 1: Gi ordren til heis uten calls, som er nærmest
 	// Håndterer om det er idle, og gir til idle
 

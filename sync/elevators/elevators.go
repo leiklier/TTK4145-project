@@ -9,9 +9,9 @@ type Direction_e int
 
 const (
 	DirectionUp   Direction_e = 1
-	DirectionDown             = -1
-	DirectionBoth             = 2 // Only used for HallCalls
-	DirectionIdle             = 0
+	DirectionDown Direction_e = -1
+	DirectionBoth Direction_e = 2 // Only used for HallCalls
+	DirectionIdle Direction_e = 0
 )
 
 type Elevator_s struct {

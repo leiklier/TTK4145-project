@@ -37,7 +37,7 @@ func BroadcastMessage(purpose string, data []byte) bool {
 	return messages.SendMessage(purpose, data)
 }
 
-func GetReceiver(purpose string) chan<- []byte {
+func GetReceiver(purpose string) chan []byte {
 	return messages.GetReceiver(purpose)
 }
 
