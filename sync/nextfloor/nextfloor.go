@@ -247,6 +247,48 @@ func SubscribeToDestinationUpdates(nextFloor chan int) {
 				// Hallcheck over
 
 				// Sammenlinke
+				// Sammenlinke
+				// Sammenlikne
+				// Det er ingenting å gjøre, nextfloor er da currentfloor
+				if nextCab == store.NumFloors+1 && nextHall == store.NumFloors+1 {
+					nextFloor <- currFloor
+
+					// Oppover sjekking
+				} else if nextCab < currFloor || nextHall < currFloor {
+					// Begge oppfylt, HallCall samme retning, begge like aktuelle
+					if nextCab > currFloor && nextHall > currFloor && sameDirection {
+						// Finne ut hvilke som er nermest
+						if nextCab > nextHall {
+							nextFloor <- nextCab
+						} else {
+							nextFloor <- nextHall
+						}
+
+						// Begge oppfylt, men HallCall i feil retning
+					} else if nextCab < currFloor && nextHall < currFloor && !sameDirection {
+						// Da er cabCall vi henter.
+						nextFloor <- nextCab
+						
+						// Bare nextCab er oppfylt, da henter vi den
+					} else if nextCab < currFloor && !(nextHall < currFloor) {
+						nextFloor <- nextCab
+					} else if !(nextCab < currFloor) && nextHall < currFloor {
+						// Bare HallCall, da spiller det ingen rolle hvilen vei
+						nextFloor <- nextHall
+
+						// Nedover sjekking, hverken cab eller hall er oppover git add .	
+					} else {
+						// Vi gir litt faen forid det var tidspress, og sender bare den som er nærmest
+						if nextCab > nextHall {
+							nextFloor <- nextCab
+						} else {
+							nextFloor <- nextHall
+						}
+					}
+				// Moving  down
+				
+			}
+			// Sammenlikne over
 
 			}
 
