@@ -61,7 +61,7 @@ func (e Elevator_s) SetDirectionMoving(newDirection Direction_e) {
 	e.directionMoving = newDirection
 }
 
-func (e Elevator_s) GetHallCalls() []HallCall_s {
+func (e Elevator_s) GetAllHallCalls() []HallCall_s {
 	return e.hallCalls
 }
 
@@ -85,4 +85,8 @@ func (e Elevator_s) AddCabCall(floor int) {
 
 func (e Elevator_s) RemoveCabCall(floor int) {
 	e.cabCalls[floor] = false
+}
+
+func (e Elevator_s) GetAllCabCalls() []bool {
+	return e.cabCalls
 }

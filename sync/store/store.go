@@ -160,6 +160,18 @@ func RemoveHallCalls(elevatorIP string, floor int) error {
 	return nil
 }
 
+func GetAllHallCalls(elevatorIP string) ([]elevators.HallCall_s error) {
+	elevator, err := GetElevator(elevatorIP)
+	if err != nil {
+		return [], err
+	}
+
+	gStateMutex.Lock()
+	defer gStateMutex.Unlock()
+
+	return elevator.GetAllHallCalls(), nil
+}
+
 func AddCabCall(elevatorIP string, floor int) error {
 	elevator, err := GetElevator(elevatorIP)
 	if err != nil {
@@ -187,6 +199,18 @@ func RemoveCabCall(elevatorIP string, floor int) error {
 
 	return nil
 
+}
+
+func GetAllCabCalls(elevatorIP string) ([]bool, error) {
+	elevator, err := GetElevator(elevatorIP)
+	if err != nil {
+		return [], err
+	}
+
+	gStateMutex.Lock()
+	defer gStateMutex.Unlock()
+
+	return elevator.GetAllCabCalls(), nil
 }
 
 func MostSuitedElevator(hcFloor int, hcDirection elevators.Direction_e) string {
