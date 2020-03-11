@@ -107,6 +107,18 @@ func GetDirectionMoving(elevatorIP string) (elevators.Direction_e, error) {
 	return elevator.GetDirectionMoving(), nil
 }
 
+func GetPreviousFloor(elevatorIP string) (int, error) {
+	elevator, err := GetElevator(elevatorIP)
+	if err != nil {
+		return 0, err
+	}
+
+	gStateMutex.Lock()
+	defer gStateMutex.Unlock()
+
+	return elevator.GetPreviousFloor(), nil
+}
+
 func SetDirectionMoving(elevatorIP string, newDirection elevators.Direction_e) error {
 	elevator, err := GetElevator(elevatorIP)
 	if err != nil {
