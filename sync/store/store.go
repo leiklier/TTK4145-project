@@ -26,8 +26,8 @@ func init() {
 }
 
 func Add(newElevator elevators.Elevator_s) error {
-	gStateMutex.Lock()
-	defer gStateMutex.Unlock()
+	// gStateMutex.Lock()
+	// defer gStateMutex.Unlock()
 
 	for _, elevatorInStore := range gState {
 		if newElevator.GetIP() == elevatorInStore.GetIP() {
@@ -40,8 +40,8 @@ func Add(newElevator elevators.Elevator_s) error {
 }
 
 func Remove(ipToRemove string) {
-	gStateMutex.Lock()
-	defer gStateMutex.Unlock()
+	// gStateMutex.Lock()
+	// defer gStateMutex.Unlock()
 
 	for i, currentElevator := range gState {
 		if currentElevator.GetIP() == ipToRemove {
@@ -90,8 +90,10 @@ func SetCurrentFloor(elevatorIP string, currentFloor int) error {
 
 	gStateMutex.Lock()
 	defer gStateMutex.Unlock()
+	Remove(elevatorIP)
 
 	elevator.SetCurrentFloor(currentFloor)
+	Add(elevator)
 	return nil
 }
 
@@ -127,8 +129,9 @@ func SetDirectionMoving(elevatorIP string, newDirection elevators.Direction_e) e
 
 	gStateMutex.Lock()
 	defer gStateMutex.Unlock()
-
+	Remove(elevatorIP)
 	elevator.SetDirectionMoving(newDirection)
+	Add(elevator)
 	return nil
 }
 
@@ -140,9 +143,9 @@ func AddHallCall(elevatorIP string, hallCall elevators.HallCall_s) error {
 
 	gStateMutex.Lock()
 	defer gStateMutex.Unlock()
-
+	Remove(elevatorIP)
 	elevator.AddHallCall(hallCall)
-
+	Add(elevator)
 	return nil
 }
 
@@ -154,9 +157,9 @@ func RemoveHallCalls(elevatorIP string, floor int) error {
 
 	gStateMutex.Lock()
 	defer gStateMutex.Unlock()
-
+	Remove(elevatorIP)
 	elevator.RemoveHallCalls(floor)
-
+	Add(elevator)
 	return nil
 }
 
@@ -180,9 +183,9 @@ func AddCabCall(elevatorIP string, floor int) error {
 
 	gStateMutex.Lock()
 	defer gStateMutex.Unlock()
-
+	Remove(elevatorIP)
 	elevator.AddCabCall(floor)
-
+	Add(elevator)
 	return nil
 }
 
@@ -194,9 +197,9 @@ func RemoveCabCall(elevatorIP string, floor int) error {
 
 	gStateMutex.Lock()
 	defer gStateMutex.Unlock()
-
+	Remove(elevatorIP)
 	elevator.RemoveCabCall(floor)
-
+	Add(elevator)
 	return nil
 
 }
