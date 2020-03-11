@@ -14,6 +14,8 @@ var gStateMutex sync.Mutex
 
 const NumFloors = 4
 
+var StoreUpdate = make(chan bool)
+
 func init() {
 	gStateMutex.Lock()
 	defer gStateMutex.Unlock()
@@ -90,10 +92,8 @@ func SetCurrentFloor(elevatorIP string, currentFloor int) error {
 
 	gStateMutex.Lock()
 	defer gStateMutex.Unlock()
-	Remove(elevatorIP)
-
 	elevator.SetCurrentFloor(currentFloor)
-	Add(elevator)
+	UpdateState(elevator)
 	return nil
 }
 
@@ -129,9 +129,8 @@ func SetDirectionMoving(elevatorIP string, newDirection elevators.Direction_e) e
 
 	gStateMutex.Lock()
 	defer gStateMutex.Unlock()
-	Remove(elevatorIP)
 	elevator.SetDirectionMoving(newDirection)
-	Add(elevator)
+	UpdateState(elevator)
 	return nil
 }
 
@@ -143,9 +142,8 @@ func AddHallCall(elevatorIP string, hallCall elevators.HallCall_s) error {
 
 	gStateMutex.Lock()
 	defer gStateMutex.Unlock()
-	Remove(elevatorIP)
 	elevator.AddHallCall(hallCall)
-	Add(elevator)
+	UpdateState(elevator)
 	return nil
 }
 
@@ -157,9 +155,8 @@ func RemoveHallCalls(elevatorIP string, floor int) error {
 
 	gStateMutex.Lock()
 	defer gStateMutex.Unlock()
-	Remove(elevatorIP)
 	elevator.RemoveHallCalls(floor)
-	Add(elevator)
+	UpdateState(elevator)
 	return nil
 }
 
@@ -183,9 +180,8 @@ func AddCabCall(elevatorIP string, floor int) error {
 
 	gStateMutex.Lock()
 	defer gStateMutex.Unlock()
-	Remove(elevatorIP)
 	elevator.AddCabCall(floor)
-	Add(elevator)
+	UpdateState(elevator)
 	return nil
 }
 
@@ -197,9 +193,8 @@ func RemoveCabCall(elevatorIP string, floor int) error {
 
 	gStateMutex.Lock()
 	defer gStateMutex.Unlock()
-	Remove(elevatorIP)
 	elevator.RemoveCabCall(floor)
-	Add(elevator)
+	UpdateState(elevator)
 	return nil
 
 }
@@ -221,4 +216,10 @@ func MostSuitedElevator(hcFloor int, hcDirection elevators.Direction_e) string {
 	defer gStateMutex.Unlock()
 
 	return costfunction.MostSuitedElevator(gState, NumFloors, hcFloor, hcDirection)
+}
+
+func UpdateState(elevator elevators.Elevator_s) {
+	Remove(elevator.GetIP())
+	Add(elevator)
+	StoreUpdate <- true
 }

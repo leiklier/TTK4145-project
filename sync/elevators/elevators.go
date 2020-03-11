@@ -1,5 +1,7 @@
 package elevators
 
+import "fmt"
+
 type HallCall_s struct {
 	Floor     int
 	Direction Direction_e
@@ -46,8 +48,10 @@ func (e Elevator_s) GetCurrentFloor() int {
 	return e.currentFloor
 }
 
-func (e Elevator_s) SetCurrentFloor(currentFloor int) {
-	e.currentFloor = currentFloor
+func (e *Elevator_s) SetCurrentFloor(newCurrentFloor int) {
+	fmt.Print("Elevator set: ")
+	fmt.Println(newCurrentFloor)
+	e.currentFloor = newCurrentFloor
 }
 
 func (e Elevator_s) GetDirectionMoving() Direction_e {
@@ -57,7 +61,7 @@ func (e Elevator_s) GetPreviousFloor() int {
 	return e.prevFloor
 }
 
-func (e Elevator_s) SetDirectionMoving(newDirection Direction_e) {
+func (e *Elevator_s) SetDirectionMoving(newDirection Direction_e) {
 	e.directionMoving = newDirection
 }
 
@@ -65,7 +69,7 @@ func (e Elevator_s) GetAllHallCalls() []HallCall_s {
 	return e.hallCalls
 }
 
-func (e Elevator_s) AddHallCall(hallCall HallCall_s) {
+func (e *Elevator_s) AddHallCall(hallCall HallCall_s) {
 	if hallCall.Direction == DirectionUp && e.hallCalls[hallCall.Floor].Direction == DirectionDown {
 		e.hallCalls[hallCall.Floor].Direction = DirectionBoth
 	} else if hallCall.Direction == DirectionDown && e.hallCalls[hallCall.Floor].Direction == DirectionUp {
@@ -75,15 +79,15 @@ func (e Elevator_s) AddHallCall(hallCall HallCall_s) {
 	}
 }
 
-func (e Elevator_s) RemoveHallCalls(floor int) {
+func (e *Elevator_s) RemoveHallCalls(floor int) {
 	e.hallCalls[floor].Direction = DirectionIdle
 }
 
-func (e Elevator_s) AddCabCall(floor int) {
+func (e *Elevator_s) AddCabCall(floor int) {
 	e.cabCalls[floor] = true
 }
 
-func (e Elevator_s) RemoveCabCall(floor int) {
+func (e *Elevator_s) RemoveCabCall(floor int) {
 	e.cabCalls[floor] = false
 }
 

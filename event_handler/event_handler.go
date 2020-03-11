@@ -48,11 +48,8 @@ func RunElevator() {
 	fmt.Println("Elevator server is running")
 
 	// Initialize all elevators at the bottom when the program is first run.
-	fmt.Println(store.GetAll())
-	store.SetCurrentFloor(selfIP, 3)
-	fmt.Print("Current before goto: ")
-	fmt.Println(store.GetCurrentFloor(selfIP))
-	fmt.Println("-----")
+	store.SetCurrentFloor(selfIP, store.NumFloors)
+
 	goToFloor(0, drv_floors)
 
 	for {
@@ -93,10 +90,9 @@ func RunElevator() {
 			}
 
 		case floor := <-nextFloor:
-			fmt.Println(store.GetAllCabCalls(selfIP))
 			fmt.Print("dest:")
 			fmt.Println(floor)
-			go goToFloor(floor, drv_floors)
+			goToFloor(floor, drv_floors)
 		}
 	}
 }
@@ -112,13 +108,13 @@ func goToFloor(destinationFloor int, drv_floors <-chan int) { // Probably add a 
 	} else if currentFloor > destinationFloor {
 		direction = elevators.DirectionDown
 	}
-	fmt.Println(direction)
 
 	elevio.SetMotorDirection(direction)
 	store.SetDirectionMoving(selfIP, direction)
 	for {
 		select {
 		case floor := <-drv_floors: // Wait for elevator to reach floor
+			fmt.Printf("Reaching floor: %d", floor)
 			elevio.SetFloorIndicator(floor)
 			if floor == destinationFloor {
 				arrivedAtFloor(floor)
@@ -129,6 +125,7 @@ func goToFloor(destinationFloor int, drv_floors <-chan int) { // Probably add a 
 }
 
 func arrivedAtFloor(floor int) {
+	fmt.Printf("setting floor %d", floor)
 	store.SetCurrentFloor(selfIP, floor)
 	elevio.SetMotorDirection(elevators.DirectionIdle) // Stop elevator and set lamps and stuff
 	store.SetDirectionMoving(selfIP, elevators.DirectionIdle)
