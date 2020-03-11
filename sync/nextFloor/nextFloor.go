@@ -1,10 +1,17 @@
-package costfunction
+package nextfloor
 
+import (
+	"fmt"
+	"time"
+
+	"../../network/peers"
+	"../elevators"
+)
 
 // SubscribeToDestinationUpdates
 func SubscribeToDestinationUpdates(nextFloor chan int) {
 	for {
-		elev,err := getElevator(peers.GetRelativeTo(peers.Self,0))
+		elev, err := store.getElevator(peers.GetRelativeTo(peers.Self, 0))
 		if err != nil {
 			fmt.Println("Can't get elevator, here is the error:")
 			fmt.Println(err)
@@ -16,20 +23,20 @@ func SubscribeToDestinationUpdates(nextFloor chan int) {
 		prevFloor := elev.prevFloor
 		currFloor := elev.currentFloor
 		cabCalls := elev.cabCalls
-		hallCalls := elev.hallCalls	
+		hallCalls := elev.hallCalls
 
-		switch currFlorr {
+		switch currFloor {
 		// Bottom floor
 		case 0:
 			nearestCab := 0
-			for i,cab := range cabCalls {
+			for i, cab := range cabCalls {
 				if cab {
 					nearestCab = i
 					break
 				}
 			}
 			nearestHall := 0
-			for i,hc := range hallCalls {
+			for i, hc := range hallCalls {
 				if hc.Direction_e != elevators.DirectionIdle {
 					nearestHall = i
 					break
@@ -37,23 +44,23 @@ func SubscribeToDestinationUpdates(nextFloor chan int) {
 			}
 			if nearestCab < nearestHall {
 				nextFloor <- nearestCab
-			}else if nearestHall < nearestCab {
+			} else if nearestHall < nearestCab {
 				nextFloor <- nearestHall
-			}else {
+			} else {
 				nextFloor <- nearestCab // Spiller ingen rolle
 			}
 
 		// Top floor
-		case NumFloors -1:
+		case NumFloors - 1:
 			nearestCab := NumFloors + 1 // høyere enn høyest
-			for i := NumFloors-1; i >= 0; i-- {
+			for i := NumFloors - 1; i >= 0; i-- {
 				if cabCalls[i] {
 					nearestCab = i
 					break
 				}
 			}
 			nearestHall := NumFloors + 1 // Høyere enn høyest
-			for i := NumFloors-1; i >= 0; i-- {
+			for i := NumFloors - 1; i >= 0; i-- {
 				if hallCalls[i].Direction_e != elevators.DirectionIdle {
 					nearestHall = i
 					break
@@ -61,68 +68,66 @@ func SubscribeToDestinationUpdates(nextFloor chan int) {
 			}
 			if nearestCab < nearestHall {
 				nextFloor <- nearestCab
-			}else if nearestHall < nearestCab {
+			} else if nearestHall < nearestCab {
 				nextFloor <- nearestHall
-			}else {
+			} else {
 				nextFloor <- nearestCab // Spiller ingen rolle
 			}
 
 		default:
-			if currFloor > prevFloor  {
+			if currFloor > prevFloor {
 				// Vi skal opp dersom det er noe å ta oppover
-				
+
 				// Cabcheck:
-				nextCab := NumFloors +1 // Defaulter med noe som er for høyt
-				for i,cab := range cabCalls {
-					if (i <= currFloor){
+				nextCab := NumFloors + 1 // Defaulter med noe som er for høyt
+				for i, cab := range cabCalls {
+					if i <= currFloor {
 						continue // Vi sjekker kun oppover
-					}else {
-						if cab {
-							nextCab = i
-							break
-						}
+					} else if cab {
+						nextCab = i
+						break
 					}
 				}
-				if nextCab == NumFloors +1 {
+				if nextCab == NumFloors+1 {
 					// Ingenting oppover, vi sjekker nedover.
-					for i := NumFloors-1; i >= 0; i--){
-						if (i >= currFloor) {
+					for i := NumFloors - 1; i >= 0; i-- {
+						if i >= currFloor {
 							continue // Sjekker kun nedover
-						}else {
+						} else {
 							if cabCalls[i] {
 								nextCab = i
 								break
 							}
 						}
-					} 
+					}
 				}
 				// Cabcheck over
 
 				// Hallcheck:
 				nextHall := NumFloors + 1
-				sameDirection := false // Vil helst ha oppover	
-				for i,hc := range hallCalls {
-					if (i <= currFloor){
+				sameDirection := false // Vil helst ha oppover
+				for i, hc := range hallCalls {
+					if i <= currFloor {
 						continue // Vi sjekker kun oppover
-					}else {
-						if hc.Direction_e != elevators.DirectionIdle  {
+					} else {
+						if hc.Direction_e != elevators.DirectionIdle {
 							nextHall = i
 							// Setter at det er samme retning om det er oppover, ELLER at det er i
-							// 4 etasje. Kan breake bare om det er samme retning, fordi da er det 
+							// 4 etasje. Kan breake bare om det er samme retning, fordi da er det
 							// nærmest og rett retning= optimalt!
-							sameDirection = (hc.Direction_e == elevators.DirectionUp || i == NumFloors -1)
+							sameDirection = (hc.Direction_e == elevators.DirectionUp || i == NumFloors-1)
 							if sameDirection {
 								break
 							}
 						}
 					}
 				}
-				if nextHall == NumFloors + 1 {
+				if nextHall == NumFloors+1 {
 					// Ingenting oppover, vi sjekker nedover.
-					for i := NumFloors-1; i >= 0; i--{
-						if (i >= currFloor) {
+					for i := NumFloors - 1; i >= 0; i-- {
+						if i >= currFloor {
 							continue // Sjekker kun nedover
-						}else {
+						} else {
 							if hallCalls[i].Direction_e != elevators.DirectionIdle {
 								nextHall = i
 								// Her spiller retningen på HC ingen rolle, ettersom vi må
@@ -131,48 +136,48 @@ func SubscribeToDestinationUpdates(nextFloor chan int) {
 								break
 							}
 						}
-					} 
+					}
 				}
 				// Hallcheck over
 
 				// Sammenlikne
-				if nextCab == NumFloors +1 && nextHall == NumFloors +1 {
-					 // Det er ingenting å gjøre, nextfloor er da currentfloor
-					 nextFloor <- currFloor
+				if nextCab == NumFloors+1 && nextHall == NumFloors+1 {
+					// Det er ingenting å gjøre, nextfloor er da currentfloor
+					nextFloor <- currFloor
 				}
 
 				if nextCab > currFloor && nextHall > currFloor && sameDirection {
 					// Finne ut hvilke som er nermest
 					if nextCab < nextHall {
 						nextFloor <- nextCab
-					}else {
+					} else {
 						nextFloor <- nextHall
 					}
 				}
-				
-			}else if currFloor < prevFloor {
+
+			} else if currFloor < prevFloor {
 				// Vi skal nedover dersom det er noe å ta nedover
-				
+
 				//Cabcheck:
 				nextCab := NumFloors + 1 // Default for høyt
-				for i := NumFloors-1; i >=0; i-- {
-					for i := NumFloors-1; i >= 0; i--{
-						if (i >= currFloor) {
+				for i := NumFloors - 1; i >= 0; i-- {
+					for i := NumFloors - 1; i >= 0; i-- {
+						if i >= currFloor {
 							continue // Sjekker kun nedover
-						}else {
+						} else {
 							if cabCalls[i] {
 								nextCab = i
 								break
 							}
 						}
-					} 
+					}
 				}
-				if nextCab == NumFloors +1 {
+				if nextCab == NumFloors+1 {
 					// Ingenting nedover, vi sjekker oppover
-					for i,cab := range cabCalls {
-						if (i <= currFloor){
+					for i, cab := range cabCalls {
+						if i <= currFloor {
 							continue // Vi sjekker kun oppover
-						}else {
+						} else {
 							if cab {
 								nextCab = i
 								break
@@ -181,14 +186,14 @@ func SubscribeToDestinationUpdates(nextFloor chan int) {
 					}
 				}
 				// Cabcheck over
-				
+
 				//Hallcheck
-				nextHall := NumFloors +1
+				nextHall := NumFloors + 1
 				sameDirection := false // Vil helst ha nedover
-				for i := NumFloors-1; i >= 0; i--){
-					if (i >= currFloor) {
+				for i := NumFloors - 1; i >= 0; i-- {
+					if i >= currFloor {
 						continue // Sjekker kun nedover
-					}else {
+					} else {
 						if hallCalls[i].Direction_e != elevators.DirectionIdle {
 							nextHall = i
 							// Samme retning nedover eller at vi er i 0te etasje.
@@ -199,13 +204,13 @@ func SubscribeToDestinationUpdates(nextFloor chan int) {
 						}
 					}
 				}
-				if nextHall == NumFloors +1 {
-					// Ingenting nedover, vi sjekker oppover 
-					for i,hc := range hallCalls {
-						if (i <= currFloor){
+				if nextHall == NumFloors+1 {
+					// Ingenting nedover, vi sjekker oppover
+					for i, hc := range hallCalls {
+						if i <= currFloor {
 							continue // Vi sjekker kun oppover
-						}else {
-							if hc.Direction_e != elevators.DirectionIdle  {
+						} else {
+							if hc.Direction_e != elevators.DirectionIdle {
 								nextHall = i
 								// Her spiller retningen på HC ingen rolle, ettersom vi må
 								// oppover uansett. Vi lar det forbli default, false og
@@ -218,21 +223,14 @@ func SubscribeToDestinationUpdates(nextFloor chan int) {
 				// Hallcheck over
 
 				// Sammenlinke
-				
-				}
-
 
 			}
-			
+
+		}
+
 	}
-	
-	// Max 4 CabCall, Max 4 HallCall, aj faen, skal jo kunne
-	// skaleres
-	// Plan, dersom du er i 0 eller 3, alltid opp og ned, 
-	// null stress joggedress
-	
-	
-	// NB!! Må bestemme oss for clear variant. Dersom vi 
+
+	// NB!! Må bestemme oss for clear variant. Dersom vi
 	// tømmer alle på et gulv er det umulig at det er noe ordre å ta på dette
 	// gulvet
 
