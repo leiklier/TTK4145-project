@@ -4,6 +4,8 @@ import (
 	"../../network/peers"
 	"../elevators"
 	"../store"
+
+	"time"
 )
 
 var selfIP = peers.GetRelativeTo(peers.Self, 0)
@@ -19,11 +21,13 @@ func SubscribeToDestinationUpdates(nextFloor chan int) {
 		// 	time.Sleep(1)
 		// 	continue
 		// }
-		currDir, _ := store.GetDirectionMoving(selfIP)
+		// currDir, _ := store.GetDirectionMoving(selfIP)
+		time.Sleep(time.Duration(2 * time.Second))
+
 		prevFloor, _ := store.GetPreviousFloor(selfIP)
 		currFloor, _ := store.GetCurrentFloor(selfIP)
-		cabCalls := elev.GetAllCabCalls(selfIP)
-		hallCalls := elev.GetAllHallCalls(selfIP)
+		cabCalls, _ := store.GetAllCabCalls(selfIP)
+		hallCalls, _ := store.GetAllHallCalls(selfIP)
 
 		switch currFloor {
 		// Bottom floor
@@ -37,7 +41,7 @@ func SubscribeToDestinationUpdates(nextFloor chan int) {
 			}
 			nearestHall := 0
 			for i, hc := range hallCalls {
-				if hc.Direction_e != elevators.DirectionIdle {
+				if hc.Direction != elevators.DirectionIdle {
 					nearestHall = i
 					break
 				}
@@ -61,7 +65,7 @@ func SubscribeToDestinationUpdates(nextFloor chan int) {
 			}
 			nearestHall := store.NumFloors + 1 // Høyere enn høyest
 			for i := store.NumFloors - 1; i >= 0; i-- {
-				if hallCalls[i].Direction_e != elevators.DirectionIdle {
+				if hallCalls[i].Direction != elevators.DirectionIdle {
 					nearestHall = i
 					break
 				}
@@ -110,12 +114,12 @@ func SubscribeToDestinationUpdates(nextFloor chan int) {
 					if i <= currFloor {
 						continue // Vi sjekker kun oppover
 					} else {
-						if hc.Direction_e != elevators.DirectionIdle {
+						if hc.Direction != elevators.DirectionIdle {
 							nextHall = i
 							// Setter at det er samme retning om det er oppover, ELLER at det er i
 							// 4 etasje. Kan breake bare om det er samme retning, fordi da er det
 							// nærmest og rett retning= optimalt!
-							sameDirection = (hc.Direction_e == elevators.DirectionUp || i == store.NumFloors-1)
+							sameDirection = (hc.Direction == elevators.DirectionUp || i == store.NumFloors-1)
 							if sameDirection {
 								break
 							}
@@ -128,7 +132,7 @@ func SubscribeToDestinationUpdates(nextFloor chan int) {
 						if i >= currFloor {
 							continue // Sjekker kun nedover
 						} else {
-							if hallCalls[i].Direction_e != elevators.DirectionIdle {
+							if hallCalls[i].Direction != elevators.DirectionIdle {
 								nextHall = i
 								// Her spiller retningen på HC ingen rolle, ettersom vi må
 								// nedover uansett. Vi lar det forbli default, false og
@@ -218,10 +222,10 @@ func SubscribeToDestinationUpdates(nextFloor chan int) {
 						if i >= currFloor {
 							continue // Sjekker kun nedover
 						} else {
-							if hallCalls[i].Direction_e != elevators.DirectionIdle {
+							if hallCalls[i].Direction != elevators.DirectionIdle {
 								nextHall = i
 								// Samme retning nedover eller at vi er i 0te etasje.
-								sameDirection = hallCalls[i].Direction_e == elevators.DirectionDown || i == 0
+								sameDirection = hallCalls[i].Direction == elevators.DirectionDown || i == 0
 								if sameDirection {
 									break
 								}
@@ -234,7 +238,7 @@ func SubscribeToDestinationUpdates(nextFloor chan int) {
 							if i <= currFloor {
 								continue // Vi sjekker kun oppover
 							} else {
-								if hc.Direction_e != elevators.DirectionIdle {
+								if hc.Direction != elevators.DirectionIdle {
 									nextHall = i
 									// Her spiller retningen på HC ingen rolle, ettersom vi må
 									// oppover uansett. Vi lar det forbli default, false og

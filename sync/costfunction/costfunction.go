@@ -14,7 +14,7 @@ func MostSuitedElevator(allElevators []elevators.Elevator_s, numFloors int, hcFl
 	isClear := true
 	var candidates []elevators.Elevator_s
 	for _, elevator := range allElevators {
-		hallCalls := elevator.GetHallCalls()
+		hallCalls := elevator.GetAllHallCalls()
 		directionMoving := elevator.GetDirectionMoving()
 
 		if directionMoving == elevators.DirectionIdle {

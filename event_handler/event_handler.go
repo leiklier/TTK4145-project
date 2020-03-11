@@ -23,7 +23,7 @@ func RunElevator() {
 
 	// First we start the server
 	fmt.Println("Starting elevator server ...")
-	err := (exec.Command("gnome-terminal", "-x", "/home/student/ElevatorServer")).Run()
+	err := (exec.Command("gnome-terminal", "-x", "/home/kristian/Dokumenter/Skole/sanntid/SimElevatorServer")).Run()
 	if err != nil {
 		fmt.Println("Something went wrong!")
 		log.Fatal(err)
@@ -48,8 +48,8 @@ func RunElevator() {
 	fmt.Println("Elevator server is running")
 
 	// Initialize all elevators at the bottom when the program is first run.
-	store.SetCurrentFloor(selfIP, store.NumFloors)
-	goToFloor(0, drv_floors)
+	// store.SetCurrentFloor(selfIP, store.NumFloors)
+	// goToFloor(0, drv_floors)
 
 	for {
 		select {

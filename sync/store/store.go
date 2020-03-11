@@ -160,10 +160,10 @@ func RemoveHallCalls(elevatorIP string, floor int) error {
 	return nil
 }
 
-func GetAllHallCalls(elevatorIP string) ([]elevators.HallCall_s error) {
+func GetAllHallCalls(elevatorIP string) ([]elevators.HallCall_s, error) {
 	elevator, err := GetElevator(elevatorIP)
 	if err != nil {
-		return [], err
+		return []elevators.HallCall_s{}, err
 	}
 
 	gStateMutex.Lock()
@@ -204,7 +204,7 @@ func RemoveCabCall(elevatorIP string, floor int) error {
 func GetAllCabCalls(elevatorIP string) ([]bool, error) {
 	elevator, err := GetElevator(elevatorIP)
 	if err != nil {
-		return [], err
+		return []bool{}, err
 	}
 
 	gStateMutex.Lock()
