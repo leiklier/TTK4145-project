@@ -21,9 +21,9 @@ func SubscribeToDestinationUpdates(nextFloor chan int) {
 		// }
 		currDir, _ := store.GetDirectionMoving(selfIP)
 		prevFloor, _ := store.GetPreviousFloor(selfIP)
-		currFloor := store.GetCurrentFloor(selfIP)
-		cabCalls := elev.GetCabCalls(selfIP)
-		hallCalls := elev.GetHallCalls(selfIP)
+		currFloor, _ := store.GetCurrentFloor(selfIP)
+		cabCalls := elev.GetAllCabCalls(selfIP)
+		hallCalls := elev.GetAllHallCalls(selfIP)
 
 		switch currFloor {
 		// Bottom floor

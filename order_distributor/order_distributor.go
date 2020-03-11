@@ -41,7 +41,8 @@ func ListenElevatorUpdate() {
 		select {
 		case stateBytes := <-state_channel:
 			json.Unmarshal(stateBytes, &states)
-			// store.Update(states)
+			store.Remove(states.GetIP())
+			store.Add(states)
 			break
 		case call := <-call_channel:
 			json.Unmarshal(call, &callMap)
