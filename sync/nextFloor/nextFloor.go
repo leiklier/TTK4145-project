@@ -51,16 +51,16 @@ func SubscribeToDestinationUpdates(nextFloor chan int) {
 			}
 
 		// Top floor
-		case store.store.store.store.store.NumFloors - 1:
-			nearestCab := store.store.store.store.store.NumFloors + 1 // høyere enn høyest
-			for i := store.store.store.store.store.NumFloors - 1; i >= 0; i-- {
+		case store.NumFloors - 1:
+			nearestCab := store.NumFloors + 1 // høyere enn høyest
+			for i := store.NumFloors - 1; i >= 0; i-- {
 				if cabCalls[i] {
 					nearestCab = i
 					break
 				}
 			}
-			nearestHall := store.store.store.store.store.NumFloors + 1 // Høyere enn høyest
-			for i := store.store.store.store.store.NumFloors - 1; i >= 0; i-- {
+			nearestHall := store.NumFloors + 1 // Høyere enn høyest
+			for i := store.NumFloors - 1; i >= 0; i-- {
 				if hallCalls[i].Direction_e != elevators.DirectionIdle {
 					nearestHall = i
 					break
@@ -79,7 +79,7 @@ func SubscribeToDestinationUpdates(nextFloor chan int) {
 				// Vi skal opp dersom det er noe å ta oppover
 
 				// Cabcheck:
-				nextCab := store.store.store.store.store.NumFloors + 1 // Defaulter med noe som er for høyt
+				nextCab := store.NumFloors + 1 // Defaulter med noe som er for høyt
 				for i, cab := range cabCalls {
 					if i <= currFloor {
 						continue // Vi sjekker kun oppover
@@ -88,9 +88,9 @@ func SubscribeToDestinationUpdates(nextFloor chan int) {
 						break
 					}
 				}
-				if nextCab == store.store.store.store.store.NumFloors+1 {
+				if nextCab == store.NumFloors+1 {
 					// Ingenting oppover, vi sjekker nedover.
-					for i := store.store.store.store.store.NumFloors - 1; i >= 0; i-- {
+					for i := store.NumFloors - 1; i >= 0; i-- {
 						if i >= currFloor {
 							continue // Sjekker kun nedover
 						} else {
@@ -104,7 +104,7 @@ func SubscribeToDestinationUpdates(nextFloor chan int) {
 				// Cabcheck over
 
 				// Hallcheck:
-				nextHall := store.store.store.store.store.NumFloors + 1
+				nextHall := store.NumFloors + 1
 				sameDirection := false // Vil helst ha oppover
 				for i, hc := range hallCalls {
 					if i <= currFloor {
@@ -115,16 +115,16 @@ func SubscribeToDestinationUpdates(nextFloor chan int) {
 							// Setter at det er samme retning om det er oppover, ELLER at det er i
 							// 4 etasje. Kan breake bare om det er samme retning, fordi da er det
 							// nærmest og rett retning= optimalt!
-							sameDirection = (hc.Direction_e == elevators.DirectionUp || i == store.store.store.store.store.NumFloors-1)
+							sameDirection = (hc.Direction_e == elevators.DirectionUp || i == store.NumFloors-1)
 							if sameDirection {
 								break
 							}
 						}
 					}
 				}
-				if nextHall == store.store.store.store.store.NumFloors+1 {
+				if nextHall == store.NumFloors+1 {
 					// Ingenting oppover, vi sjekker nedover.
-					for i := store.store.store.store.store.NumFloors - 1; i >= 0; i-- {
+					for i := store.NumFloors - 1; i >= 0; i-- {
 						if i >= currFloor {
 							continue // Sjekker kun nedover
 						} else {
@@ -141,7 +141,7 @@ func SubscribeToDestinationUpdates(nextFloor chan int) {
 				// Hallcheck over
 
 				// Sammenlikne
-				if nextCab == store.store.store.store.store.NumFloors+1 && nextHall == store.store.store.store.store.NumFloors+1 {
+				if nextCab == store.NumFloors+1 && nextHall == store.NumFloors+1 {
 					// Det er ingenting å gjøre, nextfloor er da currentfloor
 					nextFloor <- currFloor
 				}
@@ -159,9 +159,9 @@ func SubscribeToDestinationUpdates(nextFloor chan int) {
 				// Vi skal nedover dersom det er noe å ta nedover
 
 				//Cabcheck:
-				nextCab := store.store.store.store.store.NumFloors + 1 // Default for høyt
-				for i := store.store.store.store.store.NumFloors - 1; i >= 0; i-- {
-					for i := store.store.store.store.store.NumFloors - 1; i >= 0; i-- {
+				nextCab := store.NumFloors + 1 // Default for høyt
+				for i := store.NumFloors - 1; i >= 0; i-- {
+					for i := store.NumFloors - 1; i >= 0; i-- {
 						if i >= currFloor {
 							continue // Sjekker kun nedover
 						} else {
@@ -172,7 +172,7 @@ func SubscribeToDestinationUpdates(nextFloor chan int) {
 						}
 					}
 				}
-				if nextCab == store.store.store.store.store.NumFloors+1 {
+				if nextCab == store.NumFloors+1 {
 					// Ingenting nedover, vi sjekker oppover
 					for i, cab := range cabCalls {
 						if i <= currFloor {
@@ -188,7 +188,7 @@ func SubscribeToDestinationUpdates(nextFloor chan int) {
 				// Cabcheck over
 
 				//Hallcheck
-				nextHall := store.store.store.store.store.NumFloors + 1
+				nextHall := store.NumFloors + 1
 				sameDirection := false // Vil helst ha nedover
 				for i := store.store.store.store.NumFloors - 1; i >= 0; i-- {
 					if i >= currFloor {
