@@ -30,14 +30,12 @@ var controlChannel = make(chan ControlSignal, 100)
 var AddedNextChannel = make(chan string, 100) // Jævlig dårlig navn
 
 // Local variables
-var isInitialized = false
 var localIP string
 
 // Set takes an array of IP addresses, DELETES all existing
 // peers and adds the new IP addresses instead, in the same
 // order as they appear in the IPs array.
 func Set(IPs []string) {
-	initialize()
 	controlSignal := ControlSignal{
 		Command: Replace,
 		Payload: IPs,
@@ -46,7 +44,6 @@ func Set(IPs []string) {
 }
 
 func BecomeHead() {
-	initialize()
 	controlSignal := ControlSignal{
 		Command: Head,
 	}
@@ -55,7 +52,6 @@ func BecomeHead() {
 
 // Remove deletes the peer with a certain IP
 func Remove(IP string) {
-	initialize()
 	controlSignal := ControlSignal{
 		Command: Delete,
 		Payload: []string{IP},
@@ -67,7 +63,6 @@ func Remove(IP string) {
 // and adds it at the end of the list of peers, thus
 // creating a new tail. It returns nothing
 func AddTail(IP string) {
-	initialize()
 	controlSignal := ControlSignal{
 		Command: Append,
 		Payload: []string{IP},
@@ -78,7 +73,6 @@ func AddTail(IP string) {
 // GetAll returns the array of peers in the correct order
 // so the first element is HEAD and the last element is Tail
 func GetAll() []string {
-	initialize()
 	controlSignal := ControlSignal{
 		Command:         Get,
 		ResponseChannel: make(chan []string),
@@ -94,7 +88,6 @@ func GetAll() []string {
 // and offset=1, it returns the peer AFTER Self, and with offset=-1 it returns
 // the peer BEFORE Self.
 func GetRelativeTo(role int, offset int) string {
-	initialize()
 	peers := GetAll()
 
 	var indexOfRole int
@@ -120,11 +113,7 @@ func GetRelativeTo(role int, offset int) string {
 	return peers[indexWithOffset]
 }
 
-func initialize() {
-	if isInitialized {
-		return
-	}
-	isInitialized = true
+func init() {
 	localIP, _ = getLocalIP()
 	go peersServer()
 }

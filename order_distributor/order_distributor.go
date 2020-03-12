@@ -33,16 +33,15 @@ func ListenElevatorUpdate() {
 	state_channel := ring.GetReceiver(State)
 
 	callMap := make(map[string][]byte)
-	states := elevators.Elevator_s{}
+	state := elevators.Elevator_s{}
 	hCall := elevators.HallCall_s{}
 	selfIP := peers.GetRelativeTo(peers.Self, 0)
 
 	for {
 		select {
 		case stateBytes := <-state_channel:
-			json.Unmarshal(stateBytes, &states)
-			store.Remove(states.GetIP())
-			store.Add(states)
+			json.Unmarshal(stateBytes, &state)
+			store.UpdateState(state)
 			break
 		case call := <-call_channel:
 			json.Unmarshal(call, &callMap)

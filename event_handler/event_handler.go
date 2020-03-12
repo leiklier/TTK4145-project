@@ -14,8 +14,6 @@ import (
 	"../sync/store"
 )
 
-const numFloors = 4
-
 var selfIP = peers.GetRelativeTo(peers.Self, 0)
 
 // RunElevator Her skjer det
@@ -29,13 +27,13 @@ func RunElevator() {
 		log.Fatal(err)
 	}
 
+	time.Sleep(time.Duration(1 * time.Second)) // To avoid crash due to not started sim
 	elevio.Init("localhost:15657", numFloors)
 
 	drv_buttons := make(chan elevio.ButtonEvent)
 	drv_floors := make(chan int)
 	drv_obstr := make(chan bool)
 	drv_stop := make(chan bool)
-	// dst := make(chan store.Command)
 	nextFloor := make(chan int)
 
 	go elevio.PollButtons(drv_buttons) // Etasje og hvilken type knapp som blir trykket
@@ -44,7 +42,6 @@ func RunElevator() {
 	go elevio.PollStopButton(drv_stop)
 	go nextfloor.SubscribeToDestinationUpdates(nextFloor)
 
-	time.Sleep(time.Duration(2 * time.Second))
 	fmt.Println("Elevator server is running")
 
 	// Initialize all elevators at the bottom when the program is first run.
@@ -65,7 +62,7 @@ func RunElevator() {
 			if a.Button == elevio.BT_Cab {
 				store.AddCabCall(selfIP, a.Floor)
 			} else {
-				elevDir := BtnDirToElevDir(a.Button)
+				elevDir := btnDirToElevDir(a.Button)
 				mostSuitedIP := store.MostSuitedElevator(a.Floor, elevDir)
 
 				// Create and send HallCall
@@ -73,26 +70,10 @@ func RunElevator() {
 				order_distributor.SendHallCall(mostSuitedIP, hc)
 			}
 
-		// case a := <-drv_obstr: // Looks for obstruction and stops if true
-		// 	fmt.Printf("%+v\n", a)
-		// 	if a {
-		// 		elevio.SetMotorDirection(elevio.MD_Stop)
-		// 	} else {
-		// 		elevio.SetMotorDirection(d)
-		// 	}
-
-		case a := <-drv_stop: // What happens here?
-			fmt.Printf("%+v\n", a)
-			for f := 0; f < store.NumFloors; f++ {
-				for b := elevio.ButtonType(0); b < 3; b++ {
-					elevio.SetButtonLamp(b, f, false)
-				}
-			}
-
 		case floor := <-nextFloor:
 			fmt.Print("dest:")
 			fmt.Println(floor)
-			goToFloor(floor, drv_floors)
+			/*go*/ goToFloor(floor, drv_floors)
 		}
 	}
 }
@@ -120,6 +101,13 @@ func goToFloor(destinationFloor int, drv_floors <-chan int) { // Probably add a 
 				arrivedAtFloor(floor)
 				return
 			}
+			break
+		case <-time.After(5 * time.Second):
+			fmt.Println("Didn't reach floor in time!")
+			elevio.SetMotorDirection(e.DirectionIdle)
+			//Do some shit
+			return
+			break
 		}
 	}
 }
@@ -137,7 +125,8 @@ func arrivedAtFloor(floor int) {
 	time.Sleep(3 * time.Second)
 	elevio.SetDoorOpenLamp(false)
 }
-func BtnDirToElevDir(btn elevio.ButtonType) elevators.Direction_e {
+
+func btnDirToElevDir(btn elevio.ButtonType) elevators.Direction_e {
 	switch btn {
 	case elevio.BT_HallDown:
 		return elevators.DirectionDown

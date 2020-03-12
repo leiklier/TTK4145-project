@@ -17,10 +17,11 @@ type ControlSignal struct {
 }
 
 var gControlChannel = make(chan ControlSignal, 100)
-var gIsInitialized = false
 
+func init() {
+	go receiverServer()
+}
 func GetChannel(name string) chan []byte {
-	initialize()
 	controlSignal := ControlSignal{
 		Command:         GetReceiver,
 		Payload:         name,
@@ -30,14 +31,6 @@ func GetChannel(name string) chan []byte {
 
 	receiver := <-controlSignal.ResponseChannel
 	return receiver.Channel
-}
-
-func initialize() {
-	if gIsInitialized {
-		return
-	}
-	gIsInitialized = true
-	go receiverServer()
 }
 
 func receiverServer() {

@@ -28,7 +28,6 @@ type Message struct {
 }
 
 // Variables
-var gIsInitialized = false
 var gPort = 6970
 
 //Public channels
@@ -42,8 +41,12 @@ var gConnectedToServerChannel = make(chan string)
 var gSendForwardChannel = make(chan Message, 100)
 var gSendBackwardChannel = make(chan Message, 100)
 
+func init() {
+	go client()
+	go server()
+}
+
 func ConnectTo(IP string) error {
-	initialize()
 	gServerIPChannel <- IP
 	select {
 	case <-gConnectedToServerChannel:
@@ -57,7 +60,6 @@ func ConnectTo(IP string) error {
 // to the node which it is connected to by ConnectTo
 // purpose is used to filter the message on the receiving end
 func SendMessage(purpose string, data []byte) bool {
-	initialize()
 	if peers.IsAlone() {
 		return false
 	}
@@ -73,21 +75,7 @@ func SendMessage(purpose string, data []byte) bool {
 }
 
 func GetReceiver(purpose string) chan []byte {
-	initialize()
 	return receivers.GetChannel(purpose)
-}
-
-func Start() {
-	initialize()
-}
-
-func initialize() {
-	if gIsInitialized {
-		return
-	}
-	gIsInitialized = true
-	go client()
-	go server()
 }
 
 func client() {

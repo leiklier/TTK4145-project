@@ -24,7 +24,6 @@ var NewNeighbourNode = make(chan string)
 
 // Initializes the network if it's present. Establishes a new network if not
 func Init() {
-	messages.Start()
 	go ringWatcher()
 	go handleJoin()
 }
