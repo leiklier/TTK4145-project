@@ -48,6 +48,7 @@ func RunElevator() {
 	store.SetCurrentFloor(selfIP, store.NumFloors)
 
 	goToFloor(0, drv_floors)
+	fmt.Println("Elevator server is running")
 
 	for {
 		select {
@@ -71,9 +72,8 @@ func RunElevator() {
 			}
 
 		case floor := <-nextFloor:
-			fmt.Print("dest:")
-			fmt.Println(floor)
-			/*go*/ goToFloor(floor, drv_floors)
+
+			goToFloor(floor, drv_floors)
 		}
 	}
 }
@@ -84,6 +84,8 @@ func goToFloor(destinationFloor int, drv_floors <-chan int) { // Probably add a 
 	currentFloor, _ := store.GetCurrentFloor(selfIP)
 	fmt.Print("curr: ")
 	fmt.Println(currentFloor)
+	fmt.Print("dest:")
+	fmt.Println(destinationFloor)
 	if currentFloor < destinationFloor {
 		direction = elevators.DirectionUp
 	} else if currentFloor > destinationFloor {
@@ -95,14 +97,14 @@ func goToFloor(destinationFloor int, drv_floors <-chan int) { // Probably add a 
 	for {
 		select {
 		case floor := <-drv_floors: // Wait for elevator to reach floor
-			fmt.Printf("Reaching floor: %d", floor)
+			fmt.Printf("Reaching floor: %d\n", floor)
 			elevio.SetFloorIndicator(floor)
 			if floor == destinationFloor {
 				arrivedAtFloor(floor)
 				return
 			}
 			break
-		case <-time.After(5 * time.Second):
+		case <-time.After(10 * time.Second):
 			fmt.Println("Didn't reach floor in time!")
 			elevio.SetMotorDirection(elevators.DirectionIdle)
 			//Do some shit
@@ -113,7 +115,7 @@ func goToFloor(destinationFloor int, drv_floors <-chan int) { // Probably add a 
 }
 
 func arrivedAtFloor(floor int) {
-	fmt.Printf("setting floor %d", floor)
+	fmt.Printf("setting floor %d\n", floor)
 	store.SetCurrentFloor(selfIP, floor)
 	elevio.SetMotorDirection(elevators.DirectionIdle) // Stop elevator and set lamps and stuff
 	store.SetDirectionMoving(selfIP, elevators.DirectionIdle)
@@ -122,7 +124,7 @@ func arrivedAtFloor(floor int) {
 	elevio.SetButtonLamp(elevio.BT_HallDown, floor, false)
 	elevio.SetButtonLamp(elevio.BT_Cab, floor, false)
 	elevio.SetDoorOpenLamp(true)
-	time.Sleep(3 * time.Second)
+	time.Sleep(2 * time.Second)
 	elevio.SetDoorOpenLamp(false)
 }
 

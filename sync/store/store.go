@@ -221,5 +221,5 @@ func MostSuitedElevator(hcFloor int, hcDirection elevators.Direction_e) string {
 func UpdateState(elevator elevators.Elevator_s) {
 	Remove(elevator.GetIP())
 	Add(elevator)
-	StoreUpdate <- true
+	// StoreUpdate <- true
 }

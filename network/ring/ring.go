@@ -169,7 +169,7 @@ func nonBlockingRead(readChn chan<- string) { // This is iffy, was a quick fix
 		selfIp := peers.GetRelativeTo(peers.Self, 0)
 		receivedJoin := splittedMsg[0]
 		receivedIP := splittedMsg[1]
-		fmt.Println(msg)
+		// fmt.Println(msg)
 		if receivedJoin == gJOINMESSAGE && receivedIP != selfIp { // Hmmmmmm
 			readChn <- receivedIP
 		}
