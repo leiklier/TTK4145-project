@@ -28,7 +28,7 @@ func RunElevator() {
 	}
 
 	time.Sleep(time.Duration(1 * time.Second)) // To avoid crash due to not started sim
-	elevio.Init("localhost:15657", numFloors)
+	elevio.Init("localhost:15657", store.NumFloors)
 
 	drv_buttons := make(chan elevio.ButtonEvent)
 	drv_floors := make(chan int)
@@ -104,10 +104,10 @@ func goToFloor(destinationFloor int, drv_floors <-chan int) { // Probably add a 
 			break
 		case <-time.After(5 * time.Second):
 			fmt.Println("Didn't reach floor in time!")
-			elevio.SetMotorDirection(e.DirectionIdle)
+			elevio.SetMotorDirection(elevators.DirectionIdle)
 			//Do some shit
 			return
-			break
+			// break
 		}
 	}
 }

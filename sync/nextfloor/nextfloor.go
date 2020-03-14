@@ -46,10 +46,10 @@ func SubscribeToDestinationUpdates(nextFloor chan int) {
 					break
 				}
 			}
-			if nearestCab == store.NumFloors +1 && nearestHall ==store.NumFloors +1 {
+			if nearestCab == store.NumFloors+1 && (nearestHall == store.NumFloors+1) {
 				// Nothing has changed.
 				nextFloor <- currFloor
-			}else if nearestCab < nearestHall {
+			} else if nearestCab < nearestHall {
 				nextFloor <- nearestCab
 			} else if nearestHall < nearestCab {
 				nextFloor <- nearestHall
@@ -74,8 +74,8 @@ func SubscribeToDestinationUpdates(nextFloor chan int) {
 				}
 			}
 
-			if nearestCab == store.NumFloors + 1 && nearestHall== store.NumFloors + 1 {
-				nextFloor <- currFloor	
+			if nearestCab == store.NumFloors+1 && nearestHall == store.NumFloors+1 {
+				nextFloor <- currFloor
 			} else if nearestCab < nearestHall {
 				nextFloor <- nearestCab
 			} else if nearestHall < nearestCab {
@@ -313,23 +313,23 @@ func SubscribeToDestinationUpdates(nextFloor chan int) {
 	}
 }
 
-func SubscribeToDestinationUpdates2(nextFloor <-chan int) {
-	for {
-		time.Sleep(time.Duration(2 * time.Second))
+// func SubscribeToDestinationUpdates2(nextFloor <-chan int) {
+// 	for {
+// 		time.Sleep(time.Duration(2 * time.Second))
 
-		cabCalls, _ := store.GetAllCabCalls(selfIP)
-		hallCalls, _ := store.GetAllHallCalls(selfIP)
-		currDir, _ := store.GetDirectionMoving(selfIP)
+// 		cabCalls, _ := store.GetAllCabCalls(selfIP)
+// 		hallCalls, _ := store.GetAllHallCalls(selfIP)
+// 		currDir, _ := store.GetDirectionMoving(selfIP)
 
-		switch currDir {
-		case elevators.DirectionDown:
-			// Do smth
-		case elevators.DirectionUp:
-			// Do smth
-		case elevators.DirectionIdle:
-			// So smth
-		default:
-			// Da må det vel være dir both da.. det er jo litt synd om det skjer
-		}
-	}
-}
+// 		switch currDir {
+// 		case elevators.DirectionDown:
+// 			// Do smth
+// 		case elevators.DirectionUp:
+// 			// Do smth
+// 		case elevators.DirectionIdle:
+// 			// So smth
+// 		default:
+// 			// Da må det vel være dir both da.. det er jo litt synd om det skjer
+// 		}
+// 	}
+// }

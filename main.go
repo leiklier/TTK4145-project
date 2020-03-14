@@ -2,6 +2,7 @@ package main
 
 import (
 	"./event_handler"
+	"./network/ring"
 )
 
 func main() {
