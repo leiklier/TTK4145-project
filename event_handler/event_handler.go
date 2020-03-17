@@ -68,6 +68,8 @@ func RunElevator(elevNumber int) {
 		case floor := <-nextFloor:
 
 			goToFloor(floor, drv_floors)
+			break
+
 		}
 	}
 }
@@ -76,10 +78,6 @@ func goToFloor(destinationFloor int, drv_floors <-chan int) { // Probably add a 
 
 	direction := elevators.DirectionIdle
 	currentFloor, _ := store.GetCurrentFloor(selfIP)
-	// fmt.Print("curr: ")
-	// fmt.Println(currentFloor)
-	// fmt.Print("dest:")
-	fmt.Println(destinationFloor)
 	if currentFloor < destinationFloor {
 		direction = elevators.DirectionUp
 	} else if currentFloor > destinationFloor {
@@ -91,7 +89,6 @@ func goToFloor(destinationFloor int, drv_floors <-chan int) { // Probably add a 
 	for {
 		select {
 		case floor := <-drv_floors: // Wait for elevator to reach floor
-			// fmt.Printf("Reaching floor: %d\n", floor)
 			elevio.SetFloorIndicator(floor)
 			if floor == destinationFloor {
 				arrivedAtFloor(floor)
@@ -99,7 +96,7 @@ func goToFloor(destinationFloor int, drv_floors <-chan int) { // Probably add a 
 			}
 			break
 		case <-time.After(10 * time.Second):
-			// fmt.Println("Didn't reach floor in time!")
+			fmt.Println("Didn't reach floor in time!")
 			elevio.SetMotorDirection(elevators.DirectionIdle)
 			//Do some shit
 			return

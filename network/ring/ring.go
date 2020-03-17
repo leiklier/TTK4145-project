@@ -20,8 +20,6 @@ const gTIMEOUT = 2
 const gJOINMESSAGE = "JOIN"
 const NodeChange = "NodeChange"
 
-var NewNeighbourNode = make(chan string)
-
 // Initializes the network if it's present. Establishes a new network if not
 func Init(innPort string, outPort string) error {
 	peersError := peers.Init(innPort)
@@ -112,6 +110,9 @@ func ringWatcher() {
 			fmt.Printf("Disconnect : %s\n", disconnectedIP)
 
 			peers.Remove(disconnectedIP)
+			if peers.IsAlone() {
+				break
+			}
 			peers.BecomeHead()
 			nextNode := peers.GetNextPeer()
 			fmt.Printf("Connecting to: %s\n", nextNode)
@@ -131,8 +132,6 @@ func ringWatcher() {
 				messages.SendMessage(NodeChange, nodeBytes)
 			}
 			break
-			// case addedNode := <-peers.AddedNextChannel: // Blocks and will have to wait
-			// 	NewNeighbourNode <- addedNode
 		}
 	}
 }
@@ -179,7 +178,7 @@ func nonBlockingRead(readChn chan<- string) { // This is iffy, was a quick fix
 
 	defer connRead.Close()
 	for {
-		nBytes, _, _ := connRead.ReadFrom(buffer[0:])
+		nBytes, _, _ := connRead.ReadFrom(buffer[0:]) // Fuck errors
 		msg := string(buffer[:nBytes])
 		splittedMsg := strings.SplitN(msg, "-", 2)
 		self := peers.GetRelativeTo(peers.Self, 0)

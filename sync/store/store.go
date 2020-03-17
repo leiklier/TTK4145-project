@@ -2,7 +2,9 @@ package store
 
 import (
 	"errors"
+	"fmt"
 	"sync"
+	"time"
 
 	"../../network/peers"
 	"../costfunction"
@@ -222,4 +224,23 @@ func UpdateState(elevator elevators.Elevator_s) {
 	Remove(elevator.GetHostname())
 	Add(elevator)
 	// StoreUpdate <- true
+}
+
+func PrintStateAll() {
+	for {
+		select {
+		case <-time.After(5 * time.Second):
+			all := GetAll()
+			for index, item := range all {
+				fmt.Println("---------------")
+				fmt.Printf("index : %d\n", index)
+				fmt.Printf("%+v\n", item.GetHostname())
+				fmt.Printf("Current floor: %+v\n", item.GetCurrentFloor())
+				fmt.Printf("Cab calls: %+v\n", item.GetAllCabCalls())
+				fmt.Printf("Hall calls: %+v\n", item.GetAllHallCalls())
+				fmt.Printf("Direction: %+v\n", item.GetDirectionMoving())
+			}
+
+		}
+	}
 }

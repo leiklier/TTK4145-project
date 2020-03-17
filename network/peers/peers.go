@@ -28,8 +28,6 @@ type ControlSignal struct {
 
 var controlChannel = make(chan ControlSignal, 100)
 
-var AddedNextChannel = make(chan string, 100) // Jævlig dårlig navn
-
 // Local variables
 var localIP string
 var err error // Fucking go
@@ -143,20 +141,11 @@ func peersServer() {
 
 		case Append:
 			peers = append(peers, controlSignal.Payload...)
-			// for _, newPeer := range controlSignal.Payload {
-
-			// 	AddedNextChannel <- newPeer
-			// }
 			break
 
 		case Replace:
 			peers = controlSignal.Payload
-			// addedPeer, diff := difference(newPeers, peers)
-			// peers = newPeers
-			// nextPeer := GetNextPeer() // Ends up blocking
-			// if diff && addedPeer == nextPeer {
-			// 	AddedNextChannel <- addedPeer
-			// }
+
 			break
 
 		case Head:

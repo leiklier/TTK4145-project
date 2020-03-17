@@ -10,6 +10,7 @@ import (
 	"./event_handler"
 
 	"./network/ring"
+	"./order_distributor"
 	"./sync/store"
 )
 
@@ -28,13 +29,9 @@ func main() {
 	if err != nil {
 		fmt.Println(err)
 	}
-	// for {
-	// 	select {
-	// 	case <-time.After(100 * time.Second):
-	// 		break
-	// 	}
-	// }
 
+	order_distributor.Init()
+	go store.PrintStateAll()
 	event_handler.RunElevator(elevNumber)
 
 }

@@ -1,6 +1,9 @@
 package elevators
 
-import "fmt"
+import (
+	"encoding/json"
+	"fmt"
+)
 
 type HallCall_s struct {
 	Floor     int
@@ -93,4 +96,54 @@ func (e *Elevator_s) RemoveCabCall(floor int) {
 
 func (e Elevator_s) GetAllCabCalls() []bool {
 	return e.cabCalls
+}
+
+func (e Elevator_s) Marshal() ([]byte, error) {
+	j, err := json.Marshal(struct {
+		Hostname        string
+		CurrentFloor    int
+		NumFloors       int
+		PrevFloor       int
+		DirectionMoving Direction_e
+		HallCalls       []HallCall_s
+		CabCalls        []bool
+	}{
+		Hostname:        e.hostname,
+		CurrentFloor:    e.currentFloor,
+		NumFloors:       e.NumFloors,
+		PrevFloor:       e.prevFloor,
+		DirectionMoving: e.directionMoving,
+		HallCalls:       e.hallCalls,
+		CabCalls:        e.cabCalls,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return j, nil
+
+}
+
+func UnmarshalElevatorState(elevatorBytes []byte) Elevator_s { // Yeet into store?
+	type tempElevator_s struct {
+		Hostname        string
+		CurrentFloor    int
+		NumFloors       int
+		PrevFloor       int
+		DirectionMoving Direction_e
+		HallCalls       []HallCall_s
+		CabCalls        []bool
+	}
+	var tempElevator tempElevator_s
+	json.Unmarshal(elevatorBytes, &tempElevator)
+	elevator := Elevator_s{
+		hostname:        tempElevator.Hostname,
+		currentFloor:    tempElevator.CurrentFloor,
+		prevFloor:       tempElevator.PrevFloor,
+		NumFloors:       tempElevator.NumFloors,
+		directionMoving: tempElevator.DirectionMoving,
+		hallCalls:       tempElevator.HallCalls,
+		cabCalls:        tempElevator.CabCalls,
+	}
+
+	return elevator
 }
