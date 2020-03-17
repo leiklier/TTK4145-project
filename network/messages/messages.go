@@ -85,7 +85,9 @@ func GetReceiver(purpose string) chan []byte {
 
 func client() {
 	serverIP := <-gServerIPChannel
-	splittedMsg := strings.SplitN(serverIP, ":", 2)
+
+	self := peers.GetRelativeTo(peers.Self, 0)
+	splittedMsg := strings.SplitN(self, ":", 2)
 	dialer := &net.Dialer{
 		LocalAddr: &net.TCPAddr{
 			IP:   net.ParseIP(splittedMsg[0]),
