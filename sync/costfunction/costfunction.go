@@ -18,7 +18,7 @@ func MostSuitedElevator(allElevators []elevators.Elevator_s, numFloors int, hcFl
 		directionMoving := elevator.GetDirectionMoving()
 
 		if directionMoving == elevators.DirectionIdle {
-			return elevator.GetIP()
+			return elevator.GetHostname()
 		}
 
 		for _, hallCall := range hallCalls {
@@ -39,7 +39,7 @@ func MostSuitedElevator(allElevators []elevators.Elevator_s, numFloors int, hcFl
 			floorDiff := abs(elevator.GetCurrentFloor() - hcFloor)
 			if floorDiff < currMaxDiff {
 				currMaxDiff = floorDiff
-				currCand = elevator.GetIP()
+				currCand = elevator.GetHostname()
 				//fmt.Println("Kom inn i isClear")
 			}
 		}
@@ -93,10 +93,10 @@ func MostSuitedElevator(allElevators []elevators.Elevator_s, numFloors int, hcFl
 			} else if !goingTowards {
 				FS = 1
 			}
-			fmt.Println("FS Score of elevator", elevator.GetIP(), "is:", FS)
+			fmt.Println("FS Score of elevator", elevator.GetHostname(), "is:", FS)
 			if FS > currMaxFS {
 				currMaxFS = FS
-				currentMax = elevator.GetIP()
+				currentMax = elevator.GetHostname()
 			}
 		}
 

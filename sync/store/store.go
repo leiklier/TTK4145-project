@@ -21,10 +21,10 @@ func Init() {
 	defer gStateMutex.Unlock()
 
 	gState = make([]elevators.Elevator_s, 1)
-	localIP := peers.GetRelativeTo(peers.Self, 0)
+	localHostname := peers.GetRelativeTo(peers.Self, 0)
 
 	selfInitialFloor := 0
-	gState[0] = elevators.New(localIP, NumFloors, selfInitialFloor)
+	gState[0] = elevators.New(localHostname, NumFloors, selfInitialFloor)
 }
 
 func Add(newElevator elevators.Elevator_s) error {
@@ -32,7 +32,7 @@ func Add(newElevator elevators.Elevator_s) error {
 	// defer gStateMutex.Unlock()
 
 	for _, elevatorInStore := range gState {
-		if newElevator.GetIP() == elevatorInStore.GetIP() {
+		if newElevator.GetHostname() == elevatorInStore.GetHostname() {
 			return errors.New("ERR_ALREADY_EXISTS")
 		}
 	}
@@ -41,12 +41,12 @@ func Add(newElevator elevators.Elevator_s) error {
 	return nil
 }
 
-func Remove(ipToRemove string) {
+func Remove(HostnameToRemove string) {
 	// gStateMutex.Lock()
 	// defer gStateMutex.Unlock()
 
 	for i, currentElevator := range gState {
-		if currentElevator.GetIP() == ipToRemove {
+		if currentElevator.GetHostname() == HostnameToRemove {
 			copy(gState[i:], gState[i+1:])                 // Shift peers[i+1:] left one index.
 			gState[len(gState)-1] = elevators.Elevator_s{} // Erase last element (write nil value).
 			gState = gState[:len(gState)-1]                // Truncate slice.
@@ -61,19 +61,19 @@ func GetAll() []elevators.Elevator_s {
 	return gState
 }
 
-func GetElevator(elevatorIP string) (elevators.Elevator_s, error) {
+func GetElevator(elevatorHostname string) (elevators.Elevator_s, error) {
 	gStateMutex.Lock()
 	defer gStateMutex.Unlock()
 	for _, elevatorInStore := range gState {
-		if elevatorInStore.GetIP() == elevatorIP {
+		if elevatorInStore.GetHostname() == elevatorHostname {
 			return elevatorInStore, nil
 		}
 	}
 	return elevators.Elevator_s{}, errors.New("ERR_ELEVATOR_DOES_NOT_EXIST")
 }
 
-func GetCurrentFloor(elevatorIP string) (int, error) {
-	elevator, err := GetElevator(elevatorIP)
+func GetCurrentFloor(elevatorHostname string) (int, error) {
+	elevator, err := GetElevator(elevatorHostname)
 	if err != nil {
 		return 0, err
 	}
@@ -84,8 +84,8 @@ func GetCurrentFloor(elevatorIP string) (int, error) {
 	return elevator.GetCurrentFloor(), nil
 }
 
-func SetCurrentFloor(elevatorIP string, currentFloor int) error {
-	elevator, err := GetElevator(elevatorIP)
+func SetCurrentFloor(elevatorHostname string, currentFloor int) error {
+	elevator, err := GetElevator(elevatorHostname)
 	if err != nil {
 		return err
 	}
@@ -97,8 +97,8 @@ func SetCurrentFloor(elevatorIP string, currentFloor int) error {
 	return nil
 }
 
-func GetDirectionMoving(elevatorIP string) (elevators.Direction_e, error) {
-	elevator, err := GetElevator(elevatorIP)
+func GetDirectionMoving(elevatorHostname string) (elevators.Direction_e, error) {
+	elevator, err := GetElevator(elevatorHostname)
 	if err != nil {
 		return 0, err
 	}
@@ -109,8 +109,8 @@ func GetDirectionMoving(elevatorIP string) (elevators.Direction_e, error) {
 	return elevator.GetDirectionMoving(), nil
 }
 
-func GetPreviousFloor(elevatorIP string) (int, error) {
-	elevator, err := GetElevator(elevatorIP)
+func GetPreviousFloor(elevatorHostname string) (int, error) {
+	elevator, err := GetElevator(elevatorHostname)
 	if err != nil {
 		return 0, err
 	}
@@ -121,8 +121,8 @@ func GetPreviousFloor(elevatorIP string) (int, error) {
 	return elevator.GetPreviousFloor(), nil
 }
 
-func SetDirectionMoving(elevatorIP string, newDirection elevators.Direction_e) error {
-	elevator, err := GetElevator(elevatorIP)
+func SetDirectionMoving(elevatorHostname string, newDirection elevators.Direction_e) error {
+	elevator, err := GetElevator(elevatorHostname)
 	if err != nil {
 		return err
 	}
@@ -134,8 +134,8 @@ func SetDirectionMoving(elevatorIP string, newDirection elevators.Direction_e) e
 	return nil
 }
 
-func AddHallCall(elevatorIP string, hallCall elevators.HallCall_s) error {
-	elevator, err := GetElevator(elevatorIP)
+func AddHallCall(elevatorHostname string, hallCall elevators.HallCall_s) error {
+	elevator, err := GetElevator(elevatorHostname)
 	if err != nil {
 		return err
 	}
@@ -147,8 +147,8 @@ func AddHallCall(elevatorIP string, hallCall elevators.HallCall_s) error {
 	return nil
 }
 
-func RemoveHallCalls(elevatorIP string, floor int) error {
-	elevator, err := GetElevator(elevatorIP)
+func RemoveHallCalls(elevatorHostname string, floor int) error {
+	elevator, err := GetElevator(elevatorHostname)
 	if err != nil {
 		return err
 	}
@@ -160,8 +160,8 @@ func RemoveHallCalls(elevatorIP string, floor int) error {
 	return nil
 }
 
-func GetAllHallCalls(elevatorIP string) ([]elevators.HallCall_s, error) {
-	elevator, err := GetElevator(elevatorIP)
+func GetAllHallCalls(elevatorHostname string) ([]elevators.HallCall_s, error) {
+	elevator, err := GetElevator(elevatorHostname)
 	if err != nil {
 		return []elevators.HallCall_s{}, err
 	}
@@ -172,8 +172,8 @@ func GetAllHallCalls(elevatorIP string) ([]elevators.HallCall_s, error) {
 	return elevator.GetAllHallCalls(), nil
 }
 
-func AddCabCall(elevatorIP string, floor int) error {
-	elevator, err := GetElevator(elevatorIP)
+func AddCabCall(elevatorHostname string, floor int) error {
+	elevator, err := GetElevator(elevatorHostname)
 	if err != nil {
 		return err
 	}
@@ -185,8 +185,8 @@ func AddCabCall(elevatorIP string, floor int) error {
 	return nil
 }
 
-func RemoveCabCall(elevatorIP string, floor int) error {
-	elevator, err := GetElevator(elevatorIP)
+func RemoveCabCall(elevatorHostname string, floor int) error {
+	elevator, err := GetElevator(elevatorHostname)
 	if err != nil {
 		return err
 	}
@@ -199,8 +199,8 @@ func RemoveCabCall(elevatorIP string, floor int) error {
 
 }
 
-func GetAllCabCalls(elevatorIP string) ([]bool, error) {
-	elevator, err := GetElevator(elevatorIP)
+func GetAllCabCalls(elevatorHostname string) ([]bool, error) {
+	elevator, err := GetElevator(elevatorHostname)
 	if err != nil {
 		return []bool{}, err
 	}
@@ -219,7 +219,7 @@ func MostSuitedElevator(hcFloor int, hcDirection elevators.Direction_e) string {
 }
 
 func UpdateState(elevator elevators.Elevator_s) {
-	Remove(elevator.GetIP())
+	Remove(elevator.GetHostname())
 	Add(elevator)
 	// StoreUpdate <- true
 }

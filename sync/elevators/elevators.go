@@ -17,7 +17,7 @@ const (
 )
 
 type Elevator_s struct {
-	ip              string
+	hostname        string
 	currentFloor    int
 	NumFloors       int
 	prevFloor       int
@@ -26,9 +26,9 @@ type Elevator_s struct {
 	cabCalls        []bool
 }
 
-func New(peerIP string, numFloors int, currentFloor int) Elevator_s {
+func New(peerHostname string, numFloors int, currentFloor int) Elevator_s {
 	elevator := Elevator_s{
-		ip:              peerIP,
+		hostname:        peerHostname,
 		currentFloor:    currentFloor,
 		prevFloor:       currentFloor, // initialize with same floor
 		NumFloors:       numFloors,
@@ -40,8 +40,8 @@ func New(peerIP string, numFloors int, currentFloor int) Elevator_s {
 	return elevator
 }
 
-func (e Elevator_s) GetIP() string {
-	return e.ip
+func (e Elevator_s) GetHostname() string {
+	return e.hostname
 }
 
 func (e Elevator_s) GetCurrentFloor() int {

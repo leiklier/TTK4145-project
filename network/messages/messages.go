@@ -22,10 +22,10 @@ const (
 )
 
 type Message struct {
-	Purpose  string
-	Type     int    // Broadcast or Ping or PingAck
-	SenderIP string // Only necessary for Broadcast (we need to know where it started...)
-	Data     []byte
+	Purpose        string
+	Type           int    // Broadcast or Ping or PingAck
+	SenderHostname string // Only necessary for Broadcast (we need to know where it started...)
+	Data           []byte
 }
 
 // Variables
@@ -36,7 +36,7 @@ var gOutPort int
 var DisconnectedFromServerChannel = make(chan string)
 
 // Channels
-var gServerIPChannel = make(chan string)
+var gServerHostnameChannel = make(chan string)
 var gConnectedToServerChannel = make(chan string)
 
 // TODO: Make these channel names more meaningful
@@ -50,8 +50,8 @@ func Init(innPort string, outPort string) {
 	go server()
 }
 
-func ConnectTo(IP string) error {
-	gServerIPChannel <- IP
+func ConnectTo(hostname string) error {
+	gServerHostnameChannel <- hostname
 	select {
 	case <-gConnectedToServerChannel:
 		return nil
@@ -67,12 +67,12 @@ func SendMessage(purpose string, data []byte) bool {
 	if peers.IsAlone() {
 		return false
 	}
-	localIP := peers.GetRelativeTo(peers.Self, 0)
+	localHostname := peers.GetRelativeTo(peers.Self, 0)
 	message := Message{
-		Purpose:  purpose,
-		Type:     Broadcast,
-		SenderIP: localIP,
-		Data:     data,
+		Purpose:        purpose,
+		Type:           Broadcast,
+		SenderHostname: localHostname,
+		Data:           data,
 	}
 	gSendForwardChannel <- message
 	return true
@@ -83,16 +83,16 @@ func GetReceiver(purpose string) chan []byte {
 }
 
 func client() {
-	serverIP := <-gServerIPChannel
+	serverHostname := <-gServerHostnameChannel
 	var shouldDisconnectChannel = make(chan bool, 10)
-	go handleOutboundConnection(serverIP, shouldDisconnectChannel)
+	go handleOutboundConnection(serverHostname, shouldDisconnectChannel)
 
 	// We only want one active client at all times:
 	for {
-		serverIP := <-gServerIPChannel
+		serverHostname := <-gServerHostnameChannel
 		shouldDisconnectChannel <- true
 		shouldDisconnectChannel = make(chan bool, 10)
-		go handleOutboundConnection(serverIP, shouldDisconnectChannel)
+		go handleOutboundConnection(serverHostname, shouldDisconnectChannel)
 	}
 }
 
@@ -104,7 +104,6 @@ func handleOutboundConnection(server string, shouldDisconnectChannel chan bool) 
 	}
 
 	defer func() {
-		fmt.Printf("messages: lost connection to server with IP %s\n", server)
 		conn.Close()
 		if err != nil {
 			DisconnectedFromServerChannel <- server
@@ -113,7 +112,7 @@ func handleOutboundConnection(server string, shouldDisconnectChannel chan bool) 
 
 	gConnectedToServerChannel <- server
 
-	shouldSendPingTicker := time.NewTicker(500 * time.Millisecond)
+	shouldSendPingTicker := time.NewTicker(200 * time.Millisecond)
 
 	pingAckReceivedChannel := make(chan Message, 100)
 	connErrorChannel := make(chan error)
@@ -137,7 +136,6 @@ func handleOutboundConnection(server string, shouldDisconnectChannel chan bool) 
 			gSendForwardChannel <- messageToSend
 			select {
 			case <-pingAckReceivedChannel:
-				fmt.Println("Ping ping")
 				// We received a PingAck, so everything works fine
 				break
 			case <-time.After(1 * time.Second):
@@ -208,9 +206,9 @@ func handleIncomingConnection(conn net.Conn, shouldDisconnectChannel chan bool) 
 
 			switch messageReceived.Type {
 			case Broadcast:
-				localIP := peers.GetRelativeTo(peers.Self, 0)
+				localHostname := peers.GetRelativeTo(peers.Self, 0)
 
-				if messageReceived.SenderIP != localIP {
+				if messageReceived.SenderHostname != localHostname {
 					// We should forward the message to next node
 					receivers.GetChannel(messageReceived.Purpose) <- messageReceived.Data
 					gSendForwardChannel <- messageReceived

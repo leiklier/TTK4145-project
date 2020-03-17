@@ -70,23 +70,22 @@ func handleJoin(innPort string) {
 	go nonBlockingRead(readChn)
 	// sendJoinMSG(innPort)
 	for {
-		if !peers.IsHead() {
-			continue
-		}
 		select {
 		case tail := <-readChn:
+			if !peers.IsHead() {
+				break
+			}
 			if !peers.AddTail(tail) {
 				break
 			}
 			if peers.IsNextTail() {
-				fmt.Println("Next is tail")
+				fmt.Printf("Connecting to: %s\n", tail)
 				messages.ConnectTo(tail)
 			}
 			nodes := peers.GetAll()
-			fmt.Printf("New list: %s\n", nodes)
 			nodesBytes, _ := json.Marshal(nodes)
 			messages.SendMessage(NodeChange, nodesBytes)
-			fmt.Println("Adding node")
+			time.Sleep(gTIMEOUT * time.Second)
 			break
 
 		case <-time.After(5 * time.Second): // Listens for new elevators on the network
@@ -115,6 +114,7 @@ func ringWatcher() {
 			peers.Remove(disconnectedIP)
 			peers.BecomeHead()
 			nextNode := peers.GetNextPeer()
+			fmt.Printf("Connecting to: %s\n", nextNode)
 			messages.ConnectTo(nextNode)
 
 			nodeList := peers.GetAll()
@@ -122,11 +122,11 @@ func ringWatcher() {
 			messages.SendMessage(NodeChange, nodeBytes)
 			break
 		case nodeBytes := <-nodeChangeReciver:
-			fmt.Println("Setting new")
 			json.Unmarshal(nodeBytes, &nodesList)
 			if !peers.IsEqualTo(nodesList) {
 				peers.Set(nodesList)
 				nextNode := peers.GetNextPeer()
+				fmt.Printf("Connecting to: %s\n", nextNode)
 				messages.ConnectTo(nextNode)
 				messages.SendMessage(NodeChange, nodeBytes)
 			}
