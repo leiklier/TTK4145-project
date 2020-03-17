@@ -1,15 +1,10 @@
 package nextfloor
 
 import (
-	"fmt"
 	"math/rand"
-
-	"../../network/peers"
 
 	"time"
 )
-
-var selfIP = peers.GetRelativeTo(peers.Self, 0)
 
 // SubscribeToDestinationUpdates
 func SubscribeToDestinationUpdates(nextFloor chan int) {
@@ -24,7 +19,7 @@ func SubscribeToDestinationUpdates(nextFloor chan int) {
 		// }
 		// currDir, _ := store.GetDirectionMoving(selfIP)
 		time.Sleep(time.Duration(10 * time.Second))
-		fmt.Println("yeeting out some dests")
+		// fmt.Println("yeeting out some dests")
 
 		// prevFloor, _ := store.GetPreviousFloor(selfIP)
 		// currFloor, _ := store.GetCurrentFloor(selfIP)

@@ -1,12 +1,49 @@
 package main
 
 import (
-	"./event_handler"
+	"fmt"
+	"log"
+	"os"
+	"os/exec"
+	"time"
+
+	// "./event_handler"
+
 	"./network/ring"
+	"./sync/store"
 )
 
 func main() {
-	ring.Init()                 // Need to be called explicitly to establish connection before first call
-	event_handler.RunElevator() // Yeet this whole function into main? Sverre says so, but its a bit weird imo
+	innport := os.Args[1]
+	outport := os.Args[2]
+	// elevNumberStr := os.Args[3]
+	// elevNumber, _ := strconv.Atoi(elevNumberStr)
+
+	err := ring.Init(innport, outport) // time.Sleep(time.Duration(200 * time.Second)) // To avoid crash due to not started sim
+	store.Init()
+	// if elevNumber == 0 {
+	// 	spawnElevators()
+	// }
+	if err != nil {
+		fmt.Println(err)
+	}
+	for {
+		select {
+		case <-time.After(100 * time.Second):
+			break
+		}
+	}
+
+	// event_handler.RunElevator(elevNumber)
+
+}
+
+func spawnElevators() {
+
+	err := (exec.Command("gnome-terminal", "-e", "./spawnElevators.sh")).Run()
+	if err != nil {
+		fmt.Println("Something went wrong!")
+		log.Fatal(err)
+	}
 
 }

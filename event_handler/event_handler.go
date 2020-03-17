@@ -2,8 +2,7 @@ package event_handler
 
 import (
 	"fmt"
-	"log"
-	"os/exec"
+	"strconv"
 	"time"
 
 	"../elevio"
@@ -14,21 +13,17 @@ import (
 	"../sync/store"
 )
 
-var selfIP = peers.GetRelativeTo(peers.Self, 0)
+var selfIP string
 
 // RunElevator Her skjer det
-func RunElevator() {
+func RunElevator(elevNumber int) {
 
 	// First we start the server
 	fmt.Println("Starting elevator server ...")
-	err := (exec.Command("gnome-terminal", "-x", "/home/kristian/Dokumenter/Skole/sanntid/SimElevatorServer")).Run()
-	if err != nil {
-		fmt.Println("Something went wrong!")
-		log.Fatal(err)
-	}
-
+	selfIP = peers.GetRelativeTo(peers.Self, 0)
+	connPort := strconv.Itoa(15657 + elevNumber)
 	time.Sleep(time.Duration(1 * time.Second)) // To avoid crash due to not started sim
-	elevio.Init("localhost:15657", store.NumFloors)
+	elevio.Init("localhost:"+connPort, store.NumFloors)
 
 	drv_buttons := make(chan elevio.ButtonEvent)
 	drv_floors := make(chan int)
@@ -48,7 +43,6 @@ func RunElevator() {
 	store.SetCurrentFloor(selfIP, store.NumFloors)
 
 	goToFloor(0, drv_floors)
-	fmt.Println("Elevator server is running")
 
 	for {
 		select {
@@ -82,9 +76,9 @@ func goToFloor(destinationFloor int, drv_floors <-chan int) { // Probably add a 
 
 	direction := elevators.DirectionIdle
 	currentFloor, _ := store.GetCurrentFloor(selfIP)
-	fmt.Print("curr: ")
-	fmt.Println(currentFloor)
-	fmt.Print("dest:")
+	// fmt.Print("curr: ")
+	// fmt.Println(currentFloor)
+	// fmt.Print("dest:")
 	fmt.Println(destinationFloor)
 	if currentFloor < destinationFloor {
 		direction = elevators.DirectionUp
@@ -97,7 +91,7 @@ func goToFloor(destinationFloor int, drv_floors <-chan int) { // Probably add a 
 	for {
 		select {
 		case floor := <-drv_floors: // Wait for elevator to reach floor
-			fmt.Printf("Reaching floor: %d\n", floor)
+			// fmt.Printf("Reaching floor: %d\n", floor)
 			elevio.SetFloorIndicator(floor)
 			if floor == destinationFloor {
 				arrivedAtFloor(floor)
@@ -105,7 +99,7 @@ func goToFloor(destinationFloor int, drv_floors <-chan int) { // Probably add a 
 			}
 			break
 		case <-time.After(10 * time.Second):
-			fmt.Println("Didn't reach floor in time!")
+			// fmt.Println("Didn't reach floor in time!")
 			elevio.SetMotorDirection(elevators.DirectionIdle)
 			//Do some shit
 			return
@@ -115,7 +109,6 @@ func goToFloor(destinationFloor int, drv_floors <-chan int) { // Probably add a 
 }
 
 func arrivedAtFloor(floor int) {
-	fmt.Printf("setting floor %d\n", floor)
 	store.SetCurrentFloor(selfIP, floor)
 	elevio.SetMotorDirection(elevators.DirectionIdle) // Stop elevator and set lamps and stuff
 	store.SetDirectionMoving(selfIP, elevators.DirectionIdle)

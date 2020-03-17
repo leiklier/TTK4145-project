@@ -23,9 +23,20 @@ const NodeChange = "NodeChange"
 var NewNeighbourNode = make(chan string)
 
 // Initializes the network if it's present. Establishes a new network if not
-func Init() {
+func Init(innPort string, outPort string) error {
+	peersError := peers.Init(innPort)
+	fmt.Println("Started peers server")
+	if peersError != nil {
+		fmt.Println("Error starting peers server")
+		fmt.Println(peersError)
+		return peersError
+	}
+	messages.Init(innPort, outPort)
+	fmt.Println("Started messages")
+	go handleJoin(innPort)
 	go ringWatcher()
-	go handleJoin()
+	fmt.Println("Starting ring...")
+	return nil
 }
 
 //////////////////////////////////////////////
@@ -54,28 +65,33 @@ func SendToPeer(purpose string, ip string, data []byte) bool {
 // Only runs if you are HEAD, listen for new machines broadcasting
 // on the network using UDP. The new machine is added to the list of
 // known machines. That list is propagted trpough the ring to update the ring
-func handleJoin() {
+func handleJoin(innPort string) {
 	readChn := make(chan string)
 	go nonBlockingRead(readChn)
+	// sendJoinMSG(innPort)
 	for {
+		if !peers.IsHead() {
+			continue
+		}
 		select {
 		case tail := <-readChn:
-			if !peers.IsHead() {
+			if !peers.AddTail(tail) {
 				break
 			}
-
-			peers.AddTail(tail)
 			if peers.IsNextTail() {
+				fmt.Println("Next is tail")
 				messages.ConnectTo(tail)
 			}
 			nodes := peers.GetAll()
+			fmt.Printf("New list: %s\n", nodes)
 			nodesBytes, _ := json.Marshal(nodes)
 			messages.SendMessage(NodeChange, nodesBytes)
+			fmt.Println("Adding node")
 			break
 
-		case <-time.After(10 * time.Second): // Listens for new elevators on the network
+		case <-time.After(5 * time.Second): // Listens for new elevators on the network
 			if peers.IsAlone() {
-				sendJoinMSG()
+				sendJoinMSG(innPort)
 			}
 			break
 		}
@@ -105,8 +121,8 @@ func ringWatcher() {
 			nodeBytes, _ := json.Marshal(nodeList)
 			messages.SendMessage(NodeChange, nodeBytes)
 			break
-
 		case nodeBytes := <-nodeChangeReciver:
+			fmt.Println("Setting new")
 			json.Unmarshal(nodeBytes, &nodesList)
 			if !peers.IsEqualTo(nodesList) {
 				peers.Set(nodesList)
@@ -115,22 +131,22 @@ func ringWatcher() {
 				messages.SendMessage(NodeChange, nodeBytes)
 			}
 			break
-		case addedNode := <-peers.AddedNextChannel:
-			NewNeighbourNode <- addedNode
-			break
+			// case addedNode := <-peers.AddedNextChannel: // Blocks and will have to wait
+			// 	NewNeighbourNode <- addedNode
 		}
 	}
 }
 
 // Uses UDP broadcast to notify any existing ring about its presens
-func sendJoinMSG() {
+func sendJoinMSG(innPort string) {
 	connWrite := dialBroadcastUDP(gBCASTPORT)
 	defer connWrite.Close()
 
 	for i := 0; i < gConnectAttempts; i++ {
 		selfIP := peers.GetRelativeTo(peers.Self, 0)
 		addr, _ := net.ResolveUDPAddr("udp4", fmt.Sprintf("%s:%d", gBroadcastIP, gBCASTPORT))
-		connWrite.WriteTo([]byte(gJOINMESSAGE+":"+selfIP), addr)
+		message := gJOINMESSAGE + "-" + selfIP
+		connWrite.WriteTo([]byte(message), addr)
 		time.Sleep(gTIMEOUT * time.Second) // wait for response
 		if !peers.IsAlone() {
 			return
@@ -165,13 +181,12 @@ func nonBlockingRead(readChn chan<- string) { // This is iffy, was a quick fix
 	for {
 		nBytes, _, _ := connRead.ReadFrom(buffer[0:])
 		msg := string(buffer[:nBytes])
-		splittedMsg := strings.SplitN(msg, ":", 2)
-		selfIp := peers.GetRelativeTo(peers.Self, 0)
+		splittedMsg := strings.SplitN(msg, "-", 2)
+		self := peers.GetRelativeTo(peers.Self, 0)
 		receivedJoin := splittedMsg[0]
-		receivedIP := splittedMsg[1]
-		// fmt.Println(msg)
-		if receivedJoin == gJOINMESSAGE && receivedIP != selfIp { // Hmmmmmm
-			readChn <- receivedIP
+		receivedHost := splittedMsg[1]
+		if receivedJoin == gJOINMESSAGE && receivedHost != self { // Hmmmmmm
+			readChn <- receivedHost
 		}
 	}
 }

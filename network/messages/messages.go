@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"strconv"
 	"time"
 
 	"../receivers"
@@ -28,7 +29,8 @@ type Message struct {
 }
 
 // Variables
-var gPort = 6970
+var gInnPort string
+var gOutPort int
 
 //Public channels
 var DisconnectedFromServerChannel = make(chan string)
@@ -41,7 +43,9 @@ var gConnectedToServerChannel = make(chan string)
 var gSendForwardChannel = make(chan Message, 100)
 var gSendBackwardChannel = make(chan Message, 100)
 
-func init() {
+func Init(innPort string, outPort string) {
+	gInnPort = innPort
+	gOutPort, _ = strconv.Atoi(outPort)
 	go client()
 	go server()
 }
@@ -79,37 +83,43 @@ func GetReceiver(purpose string) chan []byte {
 }
 
 func client() {
+	dialer := &net.Dialer{
+		LocalAddr: &net.TCPAddr{
+			IP:   net.ParseIP("127.0.0.1"),
+			Port: gOutPort,
+		},
+	}
 	serverIP := <-gServerIPChannel
 	var shouldDisconnectChannel = make(chan bool, 10)
-	go handleOutboundConnection(serverIP, shouldDisconnectChannel)
+	go handleOutboundConnection(serverIP, dialer, shouldDisconnectChannel)
 
 	// We only want one active client at all times:
 	for {
 		serverIP := <-gServerIPChannel
 		shouldDisconnectChannel <- true
 		shouldDisconnectChannel = make(chan bool, 10)
-		go handleOutboundConnection(serverIP, shouldDisconnectChannel)
+		go handleOutboundConnection(serverIP, dialer, shouldDisconnectChannel)
 	}
 }
 
-func handleOutboundConnection(serverIP string, shouldDisconnectChannel chan bool) {
-	conn, err := net.Dial("tcp", fmt.Sprintf("%s:%d", serverIP, gPort))
+func handleOutboundConnection(server string, dialer *net.Dialer, shouldDisconnectChannel chan bool) {
+	conn, err := dialer.Dial("tcp", server)
 	if err != nil {
 		fmt.Printf("TCP client connect error: %s", err)
 		return
 	}
 
 	defer func() {
-		fmt.Printf("messages: lost connection to server with IP %s\n", serverIP)
+		fmt.Printf("messages: lost connection to server with IP %s\n", server)
 		conn.Close()
 		if err != nil {
-			DisconnectedFromServerChannel <- serverIP
+			DisconnectedFromServerChannel <- server
 		}
 	}()
 
-	gConnectedToServerChannel <- serverIP
+	gConnectedToServerChannel <- server
 
-	shouldSendPingTicker := time.NewTicker(100 * time.Millisecond)
+	shouldSendPingTicker := time.NewTicker(500 * time.Millisecond)
 
 	pingAckReceivedChannel := make(chan Message, 100)
 	connErrorChannel := make(chan error)
@@ -133,6 +143,7 @@ func handleOutboundConnection(serverIP string, shouldDisconnectChannel chan bool
 			gSendForwardChannel <- messageToSend
 			select {
 			case <-pingAckReceivedChannel:
+				// fmt.Println("Ping ping")
 				// We received a PingAck, so everything works fine
 				break
 			case <-time.After(1 * time.Second):
@@ -145,6 +156,7 @@ func handleOutboundConnection(serverIP string, shouldDisconnectChannel chan bool
 			break
 
 		case <-shouldDisconnectChannel:
+			fmt.Printf("Disconnecting from: %s\n", server)
 			return
 
 		case <-connErrorChannel:
@@ -157,9 +169,9 @@ func handleOutboundConnection(serverIP string, shouldDisconnectChannel chan bool
 
 func server() {
 	// Boot up TCP server
-	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", gPort))
+	listener, err := net.Listen("tcp", fmt.Sprintf(":%s", gInnPort))
 	if err != nil {
-		fmt.Printf("TCP server listener error: %s", err)
+		fmt.Printf("TCP server listener error: %s", err) // TODO: Maybe do something with this error
 	}
 
 	// Listen to incoming connections
@@ -168,7 +180,7 @@ func server() {
 		// Accept a new connection
 		conn, err := listener.Accept()
 		if err != nil {
-			fmt.Printf("TCP server accept error: %s", err)
+			fmt.Printf("TCP server accept error: %s", err) // TODO: and this one
 			break
 		}
 		// A new client connected to us, so disconnect to the one

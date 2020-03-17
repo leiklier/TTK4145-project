@@ -1,6 +1,7 @@
 package peers
 
 import (
+	"fmt"
 	"net"
 	"strings"
 )
@@ -31,6 +32,7 @@ var AddedNextChannel = make(chan string, 100) // Jævlig dårlig navn
 
 // Local variables
 var localIP string
+var err error // Fucking go
 
 // Set takes an array of IP addresses, DELETES all existing
 // peers and adds the new IP addresses instead, in the same
@@ -62,12 +64,17 @@ func Remove(IP string) {
 // AddTail takes an IP address in the form of a string,
 // and adds it at the end of the list of peers, thus
 // creating a new tail. It returns nothing
-func AddTail(IP string) {
+func AddTail(IP string) bool {
+	if stringInSlice(IP, GetAll()) {
+		return false
+	}
 	controlSignal := ControlSignal{
 		Command: Append,
 		Payload: []string{IP},
 	}
+
 	controlChannel <- controlSignal
+	return true
 }
 
 // GetAll returns the array of peers in the correct order
@@ -113,9 +120,15 @@ func GetRelativeTo(role int, offset int) string {
 	return peers[indexWithOffset]
 }
 
-func init() {
-	localIP, _ = getLocalIP()
+func Init(connectPort string) error {
+	localIP, err = getLocalIP()
+	if err != nil {
+		return err
+	}
+	localIP = localIP + ":" + connectPort
+	fmt.Println(localIP)
 	go peersServer()
+	return nil
 }
 
 func peersServer() {
@@ -130,20 +143,20 @@ func peersServer() {
 
 		case Append:
 			peers = append(peers, controlSignal.Payload...)
-			for _, newPeer := range controlSignal.Payload {
+			// for _, newPeer := range controlSignal.Payload {
 
-				AddedNextChannel <- newPeer
-			}
+			// 	AddedNextChannel <- newPeer
+			// }
 			break
 
 		case Replace:
-			newPeers := controlSignal.Payload
-			addedPeer, diff := difference(newPeers, peers)
-			peers = newPeers
-			nextPeer := GetNextPeer() // Use
-			if diff && addedPeer == nextPeer {
-				AddedNextChannel <- addedPeer
-			}
+			peers = controlSignal.Payload
+			// addedPeer, diff := difference(newPeers, peers)
+			// peers = newPeers
+			// nextPeer := GetNextPeer() // Ends up blocking
+			// if diff && addedPeer == nextPeer {
+			// 	AddedNextChannel <- addedPeer
+			// }
 			break
 
 		case Head:
@@ -204,7 +217,7 @@ func IsAlone() bool {
 }
 
 func IsHead() bool {
-	return GetRelativeTo(Head, 0) == GetRelativeTo(Tail, 0)
+	return GetRelativeTo(Head, 0) == GetRelativeTo(Self, 0)
 }
 
 func IsNextTail() bool {
@@ -222,6 +235,15 @@ func getLocalIP() (string, error) {
 	}
 	defer conn.Close()
 	return strings.Split(conn.LocalAddr().String(), ":")[0], nil
+}
+
+func stringInSlice(a string, list []string) bool {
+	for _, b := range list {
+		if b == a {
+			return true
+		}
+	}
+	return false
 }
 
 func difference(slice1 []string, slice2 []string) (string, bool) {

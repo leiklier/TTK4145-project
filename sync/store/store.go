@@ -16,13 +16,13 @@ const NumFloors = 4
 
 var StoreUpdate = make(chan bool)
 
-func init() {
+func Init() {
 	gStateMutex.Lock()
 	defer gStateMutex.Unlock()
 
 	gState = make([]elevators.Elevator_s, 1)
-
 	localIP := peers.GetRelativeTo(peers.Self, 0)
+
 	selfInitialFloor := 0
 	gState[0] = elevators.New(localIP, NumFloors, selfInitialFloor)
 }
