@@ -5,9 +5,9 @@ import (
 	"log"
 	"os"
 	"os/exec"
-	"time"
+	"strconv"
 
-	// "./event_handler"
+	"./event_handler"
 
 	"./network/ring"
 	"./sync/store"
@@ -16,25 +16,26 @@ import (
 func main() {
 	innport := os.Args[1]
 	outport := os.Args[2]
-	// elevNumberStr := os.Args[3]
-	// elevNumber, _ := strconv.Atoi(elevNumberStr)
+	elevNumberStr := os.Args[3]
+	elevNumber, _ := strconv.Atoi(elevNumberStr)
 
-	err := ring.Init(innport, outport) // time.Sleep(time.Duration(200 * time.Second)) // To avoid crash due to not started sim
+	err := ring.Init(innport, outport)
 	store.Init()
 	// if elevNumber == 0 {
-	// 	spawnElevators()
+	// 	 spawnElevators()
+
 	// }
 	if err != nil {
 		fmt.Println(err)
 	}
-	for {
-		select {
-		case <-time.After(100 * time.Second):
-			break
-		}
-	}
+	// for {
+	// 	select {
+	// 	case <-time.After(100 * time.Second):
+	// 		break
+	// 	}
+	// }
 
-	// event_handler.RunElevator(elevNumber)
+	event_handler.RunElevator(elevNumber)
 
 }
 
