@@ -147,7 +147,7 @@ func handleOutboundConnection(server string, dialer *net.Dialer, shouldDisconnec
 			gSendForwardChannel <- messageToSend
 			select {
 			case <-pingAckReceivedChannel:
-				// fmt.Println("Ping ping")
+				fmt.Println("Ping ping")
 				// We received a PingAck, so everything works fine
 				break
 			case <-time.After(1 * time.Second):
