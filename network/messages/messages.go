@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"net"
 	"strconv"
-	"strings"
 	"time"
 
 	"../receivers"
@@ -85,29 +84,20 @@ func GetReceiver(purpose string) chan []byte {
 
 func client() {
 	serverIP := <-gServerIPChannel
-
-	self := peers.GetRelativeTo(peers.Self, 0)
-	splittedMsg := strings.SplitN(self, ":", 2)
-	dialer := &net.Dialer{
-		LocalAddr: &net.TCPAddr{
-			IP:   net.ParseIP(splittedMsg[0]),
-			Port: gOutPort,
-		},
-	}
 	var shouldDisconnectChannel = make(chan bool, 10)
-	go handleOutboundConnection(serverIP, dialer, shouldDisconnectChannel)
+	go handleOutboundConnection(serverIP, shouldDisconnectChannel)
 
 	// We only want one active client at all times:
 	for {
 		serverIP := <-gServerIPChannel
 		shouldDisconnectChannel <- true
 		shouldDisconnectChannel = make(chan bool, 10)
-		go handleOutboundConnection(serverIP, dialer, shouldDisconnectChannel)
+		go handleOutboundConnection(serverIP, shouldDisconnectChannel)
 	}
 }
 
-func handleOutboundConnection(server string, dialer *net.Dialer, shouldDisconnectChannel chan bool) {
-	conn, err := dialer.Dial("tcp", server)
+func handleOutboundConnection(server string, shouldDisconnectChannel chan bool) {
+	conn, err := net.Dial("tcp", server)
 	if err != nil {
 		fmt.Printf("TCP client connect error: %s", err)
 		return
