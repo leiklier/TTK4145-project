@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net"
 	"strconv"
+	"strings"
 	"time"
 
 	"../receivers"
@@ -83,13 +84,14 @@ func GetReceiver(purpose string) chan []byte {
 }
 
 func client() {
+	serverIP := <-gServerIPChannel
+	splittedMsg := strings.SplitN(serverIP, ":", 2)
 	dialer := &net.Dialer{
 		LocalAddr: &net.TCPAddr{
-			IP:   net.ParseIP("127.0.0.1"),
+			IP:   net.ParseIP(splittedMsg[0]),
 			Port: gOutPort,
 		},
 	}
-	serverIP := <-gServerIPChannel
 	var shouldDisconnectChannel = make(chan bool, 10)
 	go handleOutboundConnection(serverIP, dialer, shouldDisconnectChannel)
 
