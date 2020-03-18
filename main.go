@@ -31,7 +31,7 @@ func main() {
 	}
 
 	order_distributor.Init()
-	go store.PrintStateAll()
+	// go store.sPrintStateAll()
 	event_handler.RunElevator(elevNumber)
 
 }

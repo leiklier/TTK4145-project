@@ -37,8 +37,6 @@ func RunElevator(elevNumber int) {
 	go elevio.PollStopButton(drv_stop)
 	go nextfloor.SubscribeToDestinationUpdates(nextFloor)
 
-	fmt.Println("Elevator server is running")
-
 	// Initialize all elevators at the bottom when the program is first run.
 	store.SetCurrentFloor(selfIP, store.NumFloors)
 
@@ -47,11 +45,9 @@ func RunElevator(elevNumber int) {
 	for {
 		select {
 		case a := <-drv_buttons: // Just sets the button lamp, need to translate into calls
-			fmt.Println("Noen trykket på en knapp, oh lø!")
-
 			// Setter på lyset
-			// light := store.DetermineLight(a.Floor, a.Button)
-			// elevio.SetButtonLamp(a.Button, a.Floor, light)
+			light := DetermineLight(a.Floor, a.Button)
+			elevio.SetButtonLamp(a.Button, a.Floor, light)
 
 			// Håndtere callen
 			if a.Button == elevio.BT_Cab {
@@ -74,7 +70,7 @@ func RunElevator(elevNumber int) {
 	}
 }
 
-func goToFloor(destinationFloor int, drv_floors <-chan int) { // Probably add a timeout'
+func goToFloor(destinationFloor int, drv_floors <-chan int) {
 
 	direction := elevators.DirectionIdle
 	currentFloor, _ := store.GetCurrentFloor(selfIP)
@@ -96,7 +92,7 @@ func goToFloor(destinationFloor int, drv_floors <-chan int) { // Probably add a 
 			}
 			break
 		case <-time.After(10 * time.Second):
-			fmt.Println("Didn't reach floor in time!")
+			// fmt.Println("Didn't reach floor in time!")
 			elevio.SetMotorDirection(elevators.DirectionIdle)
 			//Do some shit
 			return
@@ -125,7 +121,14 @@ func btnDirToElevDir(btn elevio.ButtonType) elevators.Direction_e {
 	case elevio.BT_HallUp:
 		return elevators.DirectionUp
 	default:
-		fmt.Println("Invalid use, must be either up or down")
 		return elevators.DirectionIdle
 	}
+}
+
+func DetermineLight(floor int, button elevio.ButtonEvent) bool {
+	localElevator, _ := store.GetElevator(selfIP)
+	if floor == localElevator.GetCurrentFloor() && localElevator.GetDirectionMoving() == 0 {
+		return false // If elevator is standing still and at floor, dont accept
+	}
+	return true
 }

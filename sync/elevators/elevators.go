@@ -27,6 +27,7 @@ type Elevator_s struct {
 	directionMoving Direction_e
 	hallCalls       []HallCall_s
 	cabCalls        []bool
+	isWorking       bool
 }
 
 func New(peerHostname string, numFloors int, currentFloor int) Elevator_s {
@@ -107,6 +108,7 @@ func (e Elevator_s) Marshal() ([]byte, error) {
 		DirectionMoving Direction_e
 		HallCalls       []HallCall_s
 		CabCalls        []bool
+		IsWorking       bool
 	}{
 		Hostname:        e.hostname,
 		CurrentFloor:    e.currentFloor,
@@ -115,6 +117,7 @@ func (e Elevator_s) Marshal() ([]byte, error) {
 		DirectionMoving: e.directionMoving,
 		HallCalls:       e.hallCalls,
 		CabCalls:        e.cabCalls,
+		IsWorking:       e.isWorking,
 	})
 	if err != nil {
 		return nil, err
@@ -132,6 +135,7 @@ func UnmarshalElevatorState(elevatorBytes []byte) Elevator_s { // Yeet into stor
 		DirectionMoving Direction_e
 		HallCalls       []HallCall_s
 		CabCalls        []bool
+		IsWorking       bool
 	}
 	var tempElevator tempElevator_s
 	json.Unmarshal(elevatorBytes, &tempElevator)
@@ -143,6 +147,7 @@ func UnmarshalElevatorState(elevatorBytes []byte) Elevator_s { // Yeet into stor
 		directionMoving: tempElevator.DirectionMoving,
 		hallCalls:       tempElevator.HallCalls,
 		cabCalls:        tempElevator.CabCalls,
+		isWorking:       tempElevator.IsWorking,
 	}
 
 	return elevator

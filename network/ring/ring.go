@@ -83,7 +83,6 @@ func handleJoin(innPort string) {
 			nodes := peers.GetAll()
 			nodesBytes, _ := json.Marshal(nodes)
 			messages.SendMessage(NodeChange, nodesBytes)
-			time.Sleep(gTIMEOUT * time.Second)
 			break
 
 		case <-time.After(5 * time.Second): // Listens for new elevators on the network
