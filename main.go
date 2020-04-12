@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"bufio"
 	"strconv"
 
 	"./event_handler"
@@ -14,13 +15,14 @@ import (
 	"./sync/store"
 )
 
+
 func main() {
-	innport := os.Args[1]
+	inport := os.Args[1]
 	outport := os.Args[2]
 	elevNumberStr := os.Args[3]
 	elevNumber, _ := strconv.Atoi(elevNumberStr)
 
-	err := ring.Init(innport, outport)
+	err := ring.Init(inport, outport)
 	store.Init()
 	// if elevNumber == 0 {
 	// 	 spawnElevators()
@@ -32,7 +34,9 @@ func main() {
 
 	order_distributor.Init()
 	// go store.sPrintStateAll()
-	event_handler.RunElevator(elevNumber)
+	event_handler.Init(elevNumber)
+
+	bufio.NewReader(os.Stdin).ReadBytes('\n')
 
 }
 

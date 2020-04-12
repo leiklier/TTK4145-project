@@ -15,8 +15,14 @@ import (
 
 var selfIP string
 
-// RunElevator Her skjer det
-func RunElevator(elevNumber int) {
+var drv_buttons = make(chan elevio.ButtonEvent)
+var drv_floors = make(chan int)
+var drv_obstr = make(chan bool)
+var drv_stop = make(chan bool)
+var nextFloor = make(chan int)
+
+// Init Her skjer det
+func Init(elevNumber int) {
 
 	// First we start the server
 	fmt.Println("Starting elevator server ...")
@@ -25,52 +31,56 @@ func RunElevator(elevNumber int) {
 	time.Sleep(time.Duration(1 * time.Second)) // To avoid crash due to not started sim
 	elevio.Init("localhost:"+connPort, store.NumFloors)
 
-	drv_buttons := make(chan elevio.ButtonEvent)
-	drv_floors := make(chan int)
-	drv_obstr := make(chan bool)
-	drv_stop := make(chan bool)
-	nextFloor := make(chan int)
-
 	go elevio.PollButtons(drv_buttons) // Etasje og hvilken type knapp som blir trykket
 	go elevio.PollFloorSensor(drv_floors)
 	go elevio.PollObstructionSwitch(drv_obstr)
 	go elevio.PollStopButton(drv_stop)
-	go nextfloor.SubscribeToDestinationUpdates(nextFloor)
 
-	// Initialize all elevators at the bottom when the program is first run.
 	store.SetCurrentFloor(selfIP, store.NumFloors)
 
-	goToFloor(0, drv_floors)
+	go nextfloor.SubscribeToDestinationUpdates(nextFloor)
+
+	go elevatorDriver(nextFloor)
+	go buttonHandler()
+}
+
+
+func buttonHandler() {
+	// Reset all Cab call lamps:
+	//cabCalls, _ := store.GetAllCabCalls(selfIP)
+	//for cabCall, floor
 
 	for {
-		select {
-		case a := <-drv_buttons: // Just sets the button lamp, need to translate into calls
-			// Setter på lyset
-			light := DetermineLight(a.Floor, a.Button)
-			elevio.SetButtonLamp(a.Button, a.Floor, light)
+		buttonEvent := <-drv_buttons
+		fmt.Println(buttonEvent)
+		// Håndtere callen
+		if buttonEvent.Button == elevio.BT_Cab {
+			// Cab call
+			elevio.SetButtonLamp(elevio.BT_Cab, buttonEvent.Floor, true)
+			store.AddCabCall(selfIP, buttonEvent.Floor)
+		} else {
+			// Hall call
+			elevDir := btnDirToElevDir(buttonEvent.Button)
+			mostSuitedIP := store.MostSuitedElevator(buttonEvent.Floor, elevDir)
 
-			// Håndtere callen
-			if a.Button == elevio.BT_Cab {
-				store.AddCabCall(selfIP, a.Floor)
-			} else {
-				elevDir := btnDirToElevDir(a.Button)
-				mostSuitedIP := store.MostSuitedElevator(a.Floor, elevDir)
-
-				// Create and send HallCall
-				hc := elevators.HallCall_s{Floor: a.Floor, Direction: elevDir}
-				order_distributor.SendHallCall(mostSuitedIP, hc)
-			}
-
-		case floor := <-nextFloor:
-
-			goToFloor(floor, drv_floors)
-			break
-
+			// Create and send HallCall
+			hc := elevators.HallCall_s{Floor: buttonEvent.Floor, Direction: elevDir}
+			order_distributor.SendHallCall(mostSuitedIP, hc)
 		}
 	}
 }
 
-func goToFloor(destinationFloor int, drv_floors <-chan int) {
+func elevatorDriver(nextFloorChan chan int) {
+	goToFloor(0)
+
+	for {
+		nextFloor := <- nextFloorChan
+		fmt.Printf("nextFloor: %d\n", nextFloor)
+		goToFloor(nextFloor)
+	}
+}
+
+func goToFloor(destinationFloor int) {
 
 	direction := elevators.DirectionIdle
 	currentFloor, _ := store.GetCurrentFloor(selfIP)
@@ -87,12 +97,17 @@ func goToFloor(destinationFloor int, drv_floors <-chan int) {
 		case floor := <-drv_floors: // Wait for elevator to reach floor
 			elevio.SetFloorIndicator(floor)
 			if floor == destinationFloor {
-				arrivedAtFloor(floor)
+				store.SetCurrentFloor(selfIP, floor)
+				store.RemoveCabCall(selfIP, floor)
+				elevio.SetMotorDirection(elevators.DirectionIdle) // Stop elevator and set lamps and stuff
+				store.SetDirectionMoving(selfIP, elevators.DirectionIdle)
+
+				openAndCloseDoors(floor)
 				return
 			}
 			break
 		case <-time.After(10 * time.Second):
-			// fmt.Println("Didn't reach floor in time!")
+			fmt.Println("Didn't reach floor in time!")
 			elevio.SetMotorDirection(elevators.DirectionIdle)
 			//Do some shit
 			return
@@ -101,10 +116,7 @@ func goToFloor(destinationFloor int, drv_floors <-chan int) {
 	}
 }
 
-func arrivedAtFloor(floor int) {
-	store.SetCurrentFloor(selfIP, floor)
-	elevio.SetMotorDirection(elevators.DirectionIdle) // Stop elevator and set lamps and stuff
-	store.SetDirectionMoving(selfIP, elevators.DirectionIdle)
+func openAndCloseDoors(floor int) {
 	elevio.SetFloorIndicator(floor)
 	elevio.SetButtonLamp(elevio.BT_HallUp, floor, false)
 	elevio.SetButtonLamp(elevio.BT_HallDown, floor, false)
