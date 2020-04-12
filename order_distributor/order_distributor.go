@@ -2,6 +2,7 @@ package order_distributor
 
 import (
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"../network/peers"
@@ -27,6 +28,7 @@ func SendElevState(state elevators.Elevator_s) bool {
 }
 
 func SendHallCall(ip string, hCall elevators.HallCall_s) bool { // Not tested
+	fmt.Printf("Sending to %s\n", ip)
 	hCallBytes, err := json.Marshal(hCall)
 	if err != nil {
 		return false
@@ -35,17 +37,16 @@ func SendHallCall(ip string, hCall elevators.HallCall_s) bool { // Not tested
 }
 
 func SendUpdate() {
+	selfIP := peers.GetRelativeTo(peers.Self, 0)
+
 	for {
 		select {
 		case <-time.After(5 * time.Second):
-			allStates := store.GetAll()
-			for _, state := range allStates {
-				SendElevState(state)
-			}
+			state, _ := store.GetElevator(selfIP)
+			SendElevState(state)
 			break
 		}
 	}
-
 }
 
 func ListenElevatorUpdate() {
@@ -65,6 +66,7 @@ func ListenElevatorUpdate() {
 		case call := <-call_channel:
 			json.Unmarshal(call, &callMap)
 			hCallBytes, found := callMap[selfIP]
+			fmt.Printf("Received from %s\n", callMap)
 			if found {
 				json.Unmarshal(hCallBytes, &hCall)
 				store.AddHallCall(selfIP, hCall)

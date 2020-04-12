@@ -39,9 +39,9 @@ func Init(elevNumber int) {
 	store.SetCurrentFloor(selfIP, store.NumFloors)
 
 	go nextfloor.SubscribeToDestinationUpdates(nextFloor)
-
 	go elevatorDriver(nextFloor)
 	go buttonHandler()
+
 }
 
 func buttonHandler() {
@@ -63,9 +63,13 @@ func buttonHandler() {
 			mostSuitedIP := store.MostSuitedElevator(buttonEvent.Floor, elevDir)
 
 			// Create and send HallCall
-			hc := elevators.HallCall_s{Floor: buttonEvent.Floor, Direction: elevDir}
-			order_distributor.SendHallCall(mostSuitedIP, hc)
+			hCall := elevators.HallCall_s{Floor: buttonEvent.Floor, Direction: elevDir}
+			if mostSuitedIP == selfIP {
+				store.AddHallCall(selfIP, hCall)
+			}
+			order_distributor.SendHallCall(mostSuitedIP, hCall)
 		}
+		// Send update/state
 	}
 }
 
@@ -76,6 +80,7 @@ func elevatorDriver(nextFloorChan chan int) {
 		nextFloor := <-nextFloorChan
 		fmt.Printf("nextFloor: %d\n", nextFloor)
 		goToFloor(nextFloor)
+		// Send update/state
 	}
 }
 
@@ -87,6 +92,12 @@ func goToFloor(destinationFloor int) {
 		direction = elevators.DirectionUp
 	} else if currentFloor > destinationFloor {
 		direction = elevators.DirectionDown
+	} else {
+		// WE DONT HAVE TO MOVE SINCE WE ARE ALREADY HERE
+		store.RemoveCabCall(selfIP, currentFloor)
+		store.RemoveHallCalls(selfIP, currentFloor)
+
+		return
 	}
 
 	elevio.SetMotorDirection(direction)
@@ -95,10 +106,13 @@ func goToFloor(destinationFloor int) {
 		select {
 		case floor := <-drv_floors: // Wait for elevator to reach floor
 			elevio.SetFloorIndicator(floor)
+			// CLear everything onn this floor
+			store.SetCurrentFloor(selfIP, floor)
+			store.RemoveCabCall(selfIP, floor)
+			store.RemoveHallCalls(selfIP, floor)
+
+			elevio.SetMotorDirection(elevators.DirectionIdle) // Stop elevator and set lamps and stuff
 			if floor == destinationFloor {
-				store.SetCurrentFloor(selfIP, floor)
-				store.RemoveCabCall(selfIP, floor)
-				elevio.SetMotorDirection(elevators.DirectionIdle) // Stop elevator and set lamps and stuff
 				store.SetDirectionMoving(selfIP, elevators.DirectionIdle)
 
 				openAndCloseDoors(floor)
@@ -113,6 +127,7 @@ func goToFloor(destinationFloor int) {
 			// break
 		}
 	}
+
 }
 
 func openAndCloseDoors(floor int) {
@@ -136,7 +151,7 @@ func btnDirToElevDir(btn elevio.ButtonType) elevators.Direction_e {
 	}
 }
 
-func DetermineLight(floor int, button elevio.ButtonEvent) bool {
+func DetermineLight(floor int, button elevio.ButtonType) bool {
 	localElevator, _ := store.GetElevator(selfIP)
 	if floor == localElevator.GetCurrentFloor() && localElevator.GetDirectionMoving() == 0 {
 		return false // If elevator is standing still and at floor, dont accept
