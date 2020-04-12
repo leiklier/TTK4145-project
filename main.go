@@ -1,11 +1,11 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"log"
 	"os"
 	"os/exec"
-	"bufio"
 	"strconv"
 
 	"./event_handler"
@@ -15,14 +15,12 @@ import (
 	"./sync/store"
 )
 
-
 func main() {
 	inport := os.Args[1]
-	outport := os.Args[2]
-	elevNumberStr := os.Args[3]
+	elevNumberStr := os.Args[2]
 	elevNumber, _ := strconv.Atoi(elevNumberStr)
 
-	err := ring.Init(inport, outport)
+	err := ring.Init(inport)
 	store.Init()
 	// if elevNumber == 0 {
 	// 	 spawnElevators()

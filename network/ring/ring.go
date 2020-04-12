@@ -21,7 +21,7 @@ const gJOINMESSAGE = "JOIN"
 const NodeChange = "NodeChange"
 
 // Initializes the network if it's present. Establishes a new network if not
-func Init(innPort string, outPort string) error {
+func Init(innPort string) error {
 	peersError := peers.Init(innPort)
 	fmt.Println("Started peers server")
 	if peersError != nil {
@@ -29,7 +29,7 @@ func Init(innPort string, outPort string) error {
 		fmt.Println(peersError)
 		return peersError
 	}
-	messages.Init(innPort, outPort)
+	messages.Init(innPort)
 	fmt.Println("Started messages")
 	go handleJoin(innPort)
 	go ringWatcher()

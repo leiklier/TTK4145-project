@@ -44,7 +44,6 @@ func Init(elevNumber int) {
 	go buttonHandler()
 }
 
-
 func buttonHandler() {
 	// Reset all Cab call lamps:
 	//cabCalls, _ := store.GetAllCabCalls(selfIP)
@@ -74,7 +73,7 @@ func elevatorDriver(nextFloorChan chan int) {
 	goToFloor(0)
 
 	for {
-		nextFloor := <- nextFloorChan
+		nextFloor := <-nextFloorChan
 		fmt.Printf("nextFloor: %d\n", nextFloor)
 		goToFloor(nextFloor)
 	}

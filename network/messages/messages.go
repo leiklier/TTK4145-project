@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"strconv"
 	"time"
 
 	"../receivers"
@@ -30,7 +29,6 @@ type Message struct {
 
 // Variables
 var gInnPort string
-var gOutPort int
 
 //Public channels
 var DisconnectedFromServerChannel = make(chan string)
@@ -43,9 +41,8 @@ var gConnectedToServerChannel = make(chan string)
 var gSendForwardChannel = make(chan Message, 100)
 var gSendBackwardChannel = make(chan Message, 100)
 
-func Init(innPort string, outPort string) {
+func Init(innPort string) {
 	gInnPort = innPort
-	gOutPort, _ = strconv.Atoi(outPort)
 	go client()
 	go server()
 }
