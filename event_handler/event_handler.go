@@ -40,6 +40,7 @@ func Init(elevNumber int) {
 
 	go nextfloor.SubscribeToDestinationUpdates(nextFloor)
 	go elevatorDriver(nextFloor)
+	go hcLightDriver()
 	go buttonHandler()
 
 }
@@ -81,6 +82,33 @@ func elevatorDriver(nextFloorChan chan int) {
 		fmt.Printf("nextFloor: %d\n", nextFloor)
 		goToFloor(nextFloor)
 		// Send update/state
+	}
+}
+
+func hcLightDriver() {
+	for {
+		var lights [store.NumFloors][2]bool
+		allElevators := store.GetAll()
+
+		for _, elevator := range allElevators {
+			for _, hallCall := range elevator.GetAllHallCalls() {
+				if hallCall.Direction == elevators.DirectionUp {
+					lights[hallCall.Floor][1] = true
+				} else if hallCall.Direction == elevators.DirectionDown {
+					lights[hallCall.Floor][0] = true
+				} else if hallCall.Direction == elevators.DirectionBoth {
+					lights[hallCall.Floor][1] = true
+					lights[hallCall.Floor][0] = true
+				}
+			}
+		}
+
+		for floor, value := range lights {
+			elevio.SetButtonLamp(elevio.BT_HallDown, floor, value[0])
+			elevio.SetButtonLamp(elevio.BT_HallUp, floor, value[1])
+		}
+
+		<- store.ShouldRecalculateHCLightsChannel
 	}
 }
 

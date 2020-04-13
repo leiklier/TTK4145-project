@@ -31,13 +31,19 @@ type Elevator_s struct {
 }
 
 func New(peerHostname string, numFloors int, currentFloor int) Elevator_s {
+	var hallCalls = make([]HallCall_s, numFloors)
+	for i, _ := range hallCalls {
+		hc := HallCall_s{Floor: i, Direction: DirectionIdle}
+		hallCalls[i] = hc
+	}
+
 	elevator := Elevator_s{
 		hostname:        peerHostname,
 		currentFloor:    currentFloor,
 		prevFloor:       currentFloor, // initialize with same floor
 		NumFloors:       numFloors,
 		directionMoving: DirectionIdle,
-		hallCalls:       make([]HallCall_s, numFloors),
+		hallCalls:       hallCalls,
 		cabCalls:        make([]bool, numFloors),
 	}
 

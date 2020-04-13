@@ -44,7 +44,7 @@ func SubscribeToDestinationUpdates(nextFloor chan int) {
 			fmt.Println("Get the Bible and pray!")
 		}
 		// Only rerun when store has changed:
-		<- store.StoreIsUpdatedChannel
+		<- store.ShouldRecalculateNextFloorChannel
 	}
 }
 
