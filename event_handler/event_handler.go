@@ -36,7 +36,7 @@ func Init(elevNumber int) {
 	go elevio.PollObstructionSwitch(drv_obstr)
 	go elevio.PollStopButton(drv_stop)
 
-	store.SetCurrentFloor(selfIP, store.NumFloors)
+	store.SetCurrentFloor(selfIP, store.NumFloors-1)
 
 	go nextfloor.SubscribeToDestinationUpdates(nextFloor)
 	go elevatorDriver(nextFloor)
@@ -108,7 +108,7 @@ func hcLightDriver() {
 			elevio.SetButtonLamp(elevio.BT_HallUp, floor, value[1])
 		}
 
-		<- store.ShouldRecalculateHCLightsChannel
+		<-store.ShouldRecalculateHCLightsChannel
 	}
 }
 
@@ -138,7 +138,6 @@ func goToFloor(destinationFloor int) {
 			store.SetCurrentFloor(selfIP, floor)
 			store.RemoveCabCall(selfIP, floor)
 			store.RemoveHallCalls(selfIP, floor)
-
 
 			if floor == destinationFloor {
 				elevio.SetMotorDirection(elevators.DirectionIdle) // Stop elevator and set lamps and stuff
