@@ -17,6 +17,8 @@ const (
 	Call  = "Call"
 )
 
+var SendStateUpdate = make(chan bool)
+
 func Init() {
 	go SendUpdate()
 	go ListenElevatorUpdate()
@@ -41,6 +43,11 @@ func SendUpdate() {
 
 	for {
 		select {
+		case <-SendStateUpdate:
+			state, _ := store.GetElevator(selfIP)
+			SendElevState(state)
+			break
+
 		case <-time.After(3 * time.Second):
 			state, _ := store.GetElevator(selfIP)
 			SendElevState(state)
@@ -66,7 +73,6 @@ func ListenElevatorUpdate() {
 		case call := <-call_channel:
 			json.Unmarshal(call, &callMap)
 			hCallBytes, found := callMap[selfIP]
-			fmt.Printf("Received from %s\n", callMap)
 			if found {
 				json.Unmarshal(hCallBytes, &hCall)
 				store.AddHallCall(selfIP, hCall)

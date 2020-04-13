@@ -109,7 +109,7 @@ func handleOutboundConnection(server string, shouldDisconnectChannel chan bool) 
 
 	gConnectedToServerChannel <- server
 
-	shouldSendPingTicker := time.NewTicker(200 * time.Millisecond)
+	shouldSendPingTicker := time.NewTicker(800 * time.Millisecond)
 
 	pingAckReceivedChannel := make(chan Message, 100)
 	connErrorChannel := make(chan error)
@@ -133,6 +133,7 @@ func handleOutboundConnection(server string, shouldDisconnectChannel chan bool) 
 			gSendForwardChannel <- messageToSend
 			select {
 			case <-pingAckReceivedChannel:
+				fmt.Printf("Connected\n")
 				// We received a PingAck, so everything works fine
 				break
 			case <-time.After(1 * time.Second):
@@ -258,7 +259,7 @@ func sendMessages(conn net.Conn, messageToSendChannel chan Message, errorChannel
 			// We need to retransmit the message, to pass it back to the channel.
 			// However, the connection is not working so disconnect.
 			messageToSendChannel <- messageToSend
-			errorChannel <- err
+			// errorChannel <- err
 			return
 		}
 	}

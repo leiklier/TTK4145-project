@@ -70,7 +70,11 @@ func buttonHandler() {
 			}
 			order_distributor.SendHallCall(mostSuitedIP, hCall)
 		}
-		// Send update/state
+		select {
+		case order_distributor.SendStateUpdate <- true:
+		default:
+		}
+
 	}
 }
 
@@ -79,8 +83,12 @@ func elevatorDriver(nextFloorChan chan int) {
 
 	for {
 		nextFloor := <-nextFloorChan
-		fmt.Printf("nextFloor: %d\n", nextFloor)
+		// fmt.Printf("nextFloor: %d\n", nextFloor)
 		goToFloor(nextFloor)
+		select {
+		case order_distributor.SendStateUpdate <- true:
+		default:
+		}
 		// Send update/state
 	}
 }

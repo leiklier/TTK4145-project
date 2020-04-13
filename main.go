@@ -31,7 +31,7 @@ func main() {
 	}
 
 	order_distributor.Init()
-	go store.PrintStateAll()
+	// go store.PrintStateAll()
 	event_handler.Init(elevNumber)
 
 	bufio.NewReader(os.Stdin).ReadBytes('\n')

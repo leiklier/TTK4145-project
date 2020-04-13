@@ -145,7 +145,16 @@ func peersServer() {
 
 		case Replace:
 			peers = controlSignal.Payload
+			selfInPeers := false
+			for _, peer := range peers {
+				if peer == localIP {
+					selfInPeers = true
+				}
+			}
 
+			if selfInPeers == false {
+				peers = append(peers, localIP)
+			}
 			break
 
 		case Head:
@@ -168,13 +177,17 @@ func peersServer() {
 
 		case Delete:
 			peerToRemove := controlSignal.Payload[0]
-			for i, peer := range peers {
-				if peer == peerToRemove {
-					copy(peers[i:], peers[i+1:]) // Shift peers[i+1:] left one index.
-					peers[len(peers)-1] = ""     // Erase last element (write zero value).
-					peers = peers[:len(peers)-1] // Truncate slice.
-					break
+			if peerToRemove != localIP { // Don't delete yourself
+
+				for i, peer := range peers {
+					if peer == peerToRemove {
+						copy(peers[i:], peers[i+1:]) // Shift peers[i+1:] left one index.
+						peers[len(peers)-1] = ""     // Erase last element (write zero value).
+						peers = peers[:len(peers)-1] // Truncate slice.
+						break
+					}
 				}
+				break
 			}
 		}
 	}

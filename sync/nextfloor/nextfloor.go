@@ -35,8 +35,6 @@ func SubscribeToDestinationUpdates(nextFloor chan int) {
 			nf := searchBoth(currFloor, hallCalls, cabCalls)
 			if nf != -1 {
 				nextFloor <- nf
-			} else {
-				nextFloor <- currFloor
 			}
 
 		default:
