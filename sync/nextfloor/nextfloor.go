@@ -37,6 +37,8 @@ func SubscribeToDestinationUpdates(nextFloor chan int) {
 			nf := searchBoth(currFloor, hallCalls, cabCalls)
 			if nf != -1 {
 				nextFloor <- nf
+			} else {
+				nextFloor <- currFloor
 			}
 			break
 
@@ -44,7 +46,7 @@ func SubscribeToDestinationUpdates(nextFloor chan int) {
 			fmt.Println("Get the Bible and pray!")
 		}
 		// Only rerun when store has changed:
-		<- store.ShouldRecalculateNextFloorChannel
+		<-store.ShouldRecalculateNextFloorChannel
 	}
 }
 
