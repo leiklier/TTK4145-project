@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"../../sync/store"
 	"../bcast"
 	"../messages"
 	"../peers"
@@ -19,6 +18,8 @@ const gConnectAttempts = 5
 const gTIMEOUT = 2
 const gJOINMESSAGE = "JOIN"
 const NodeChange = "NodeChange"
+
+var DisconnectedPeer = make(chan string)
 
 // Initializes the network if it's present. Establishes a new network if not
 func Init(innPort string) error {
@@ -109,7 +110,7 @@ func ringWatcher() {
 			fmt.Printf("Disconnect : %s\n", disconnectedIP)
 
 			peers.Remove(disconnectedIP)
-			store.Remove(disconnectedIP) // This might be bad!
+			DisconnectedPeer <- disconnectedIP
 			if peers.IsAlone() {
 				break
 			}

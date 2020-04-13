@@ -2,6 +2,7 @@ package event_handler
 
 import (
 	"fmt"
+	"log"
 	"strconv"
 	"time"
 
@@ -161,10 +162,9 @@ func goToFloor(destinationFloor int) {
 			}
 			break
 		case <-time.After(10 * time.Second):
-			fmt.Println("Didn't reach floor in time!")
 			elevio.SetMotorDirection(elevators.DirectionIdle)
 			//Do some shit
-			return
+			log.Fatal("Didn't reach floor in time!\n")
 			// break
 		}
 	}

@@ -18,10 +18,14 @@ const (
 )
 
 var SendStateUpdate = make(chan bool)
+var selfIP string
 
 func Init() {
+	selfIP = peers.GetRelativeTo(peers.Self, 0)
+
 	go SendUpdate()
 	go ListenElevatorUpdate()
+	go RemovedPeerListener()
 }
 
 func SendElevState(state elevators.Elevator_s) bool {
@@ -38,7 +42,6 @@ func SendHallCall(ip string, hCall elevators.HallCall_s) bool { // Not tested
 }
 
 func SendUpdate() {
-	selfIP := peers.GetRelativeTo(peers.Self, 0)
 
 	for {
 		select {
@@ -56,13 +59,30 @@ func SendUpdate() {
 	}
 }
 
+func RemovedPeerListener() {
+	for {
+		select {
+		case disconectedPeer := <-ring.DisconnectedPeer:
+			hall_calls, _ := store.GetAllHallCalls(disconectedPeer)
+			store.Remove(disconectedPeer)
+			for _, hc := range hall_calls {
+				mostSuitedIP := store.MostSuitedElevator(hc.Floor, hc.Direction)
+				fmt.Printf("Most suited: %s\n", mostSuitedIP)
+				if mostSuitedIP == selfIP {
+					store.AddHallCall(selfIP, hc)
+				}
+				SendHallCall(mostSuitedIP, hc)
+			}
+		}
+	}
+}
+
 func ListenElevatorUpdate() {
 	call_channel := ring.GetReceiver(Call)
 	state_channel := ring.GetReceiver(State)
 
 	callMap := make(map[string][]byte)
 	hCall := elevators.HallCall_s{}
-	selfIP := peers.GetRelativeTo(peers.Self, 0)
 
 	for {
 		select {
