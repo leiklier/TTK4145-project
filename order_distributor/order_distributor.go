@@ -41,7 +41,7 @@ func SendUpdate() {
 
 	for {
 		select {
-		case <-time.After(5 * time.Second):
+		case <-time.After(3 * time.Second):
 			state, _ := store.GetElevator(selfIP)
 			SendElevState(state)
 			break
