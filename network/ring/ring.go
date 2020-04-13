@@ -4,13 +4,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
-	"os"
 	"strings"
-	"syscall"
 	"time"
 
 	"../messages"
 	"../peers"
+	"../bcast"
 )
 
 const gBCASTPORT = 6971
@@ -137,7 +136,7 @@ func ringWatcher() {
 
 // Uses UDP broadcast to notify any existing ring about its presens
 func sendJoinMSG(innPort string) {
-	connWrite := dialBroadcastUDP(gBCASTPORT)
+	connWrite := bcast.DialBroadcastUDP(gBCASTPORT)
 	defer connWrite.Close()
 
 	for i := 0; i < gConnectAttempts; i++ {
@@ -156,24 +155,11 @@ func sendJoinMSG(innPort string) {
 // Helper functions
 ////////////////////////////////////////////////////
 
-// Tar inn port, returnerer en udpconn til porten.
-func dialBroadcastUDP(port int) net.PacketConn {
-	s, _ := syscall.Socket(syscall.AF_INET, syscall.SOCK_DGRAM, syscall.IPPROTO_UDP)
-	syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1)
-	syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_BROADCAST, 1)
-	syscall.Bind(s, &syscall.SockaddrInet4{Port: port})
-
-	f := os.NewFile(uintptr(s), "")
-	conn, _ := net.FilePacketConn(f)
-	f.Close()
-
-	return conn
-}
 
 // Makes it possible to have timeout on udp read
 func nonBlockingRead(readChn chan<- string) { // This is iffy, was a quick fix
 	buffer := make([]byte, 100)
-	connRead := dialBroadcastUDP(gBCASTPORT)
+	connRead := bcast.DialBroadcastUDP(gBCASTPORT)
 
 	defer connRead.Close()
 	for {
