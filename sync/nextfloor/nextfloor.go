@@ -23,12 +23,14 @@ func SubscribeToDestinationUpdates(nextFloor chan int) {
 			if nf != -1 {
 				nextFloor <- nf
 			}
+			break
 
 		case elevators.DirectionUp:
 			nf := searchAbove(currFloor, hallCalls, cabCalls)
 			if nf != -1 {
 				nextFloor <- nf
 			}
+			break
 
 		case elevators.DirectionIdle:
 			// Denne kan egntlig håndere hele suppen hvis vi kun sjekker på idle
@@ -36,10 +38,13 @@ func SubscribeToDestinationUpdates(nextFloor chan int) {
 			if nf != -1 {
 				nextFloor <- nf
 			}
+			break
 
 		default:
 			fmt.Println("Get the Bible and pray!")
 		}
+		// Only rerun when store has changed:
+		<- store.StoreIsUpdatedChannel
 	}
 }
 

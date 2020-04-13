@@ -11,7 +11,7 @@
 - Hvis noen ikke aksepterer hall call må den håndteres.
 - pass_på_naboens hallcalls -J
 - Hall call i etasje som heis står i blir ikke fjernet.
-- SubToDest må iterere kun når store oppdateres, også skal den kun spytte ut når nextFloor er ulik currentFloor
+- SubToDest må iterere kun når store oppdateres, også skal den kun spytte ut når nextFloor er ulik currentFloor - L ✅
 ---------------------------------------------------------
 - Catch some errorz -A
 

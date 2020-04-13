@@ -16,7 +16,7 @@ var gStateMutex sync.Mutex
 
 const NumFloors = 4
 
-var StoreUpdate = make(chan bool)
+var StoreIsUpdatedChannel = make(chan bool)
 
 func Init() {
 	gStateMutex.Lock()
@@ -223,7 +223,10 @@ func MostSuitedElevator(hcFloor int, hcDirection elevators.Direction_e) string {
 func UpdateState(elevator elevators.Elevator_s) {
 	Remove(elevator.GetHostname())
 	Add(elevator)
-	// StoreUpdate <- true
+	select {
+		case StoreIsUpdatedChannel <- true: // Only add to channel if not full
+		default:
+	}
 }
 
 func PrintStateAll() {

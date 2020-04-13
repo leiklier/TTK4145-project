@@ -111,8 +111,9 @@ func goToFloor(destinationFloor int) {
 			store.RemoveCabCall(selfIP, floor)
 			store.RemoveHallCalls(selfIP, floor)
 
-			elevio.SetMotorDirection(elevators.DirectionIdle) // Stop elevator and set lamps and stuff
+
 			if floor == destinationFloor {
+				elevio.SetMotorDirection(elevators.DirectionIdle) // Stop elevator and set lamps and stuff
 				store.SetDirectionMoving(selfIP, elevators.DirectionIdle)
 
 				openAndCloseDoors(floor)
