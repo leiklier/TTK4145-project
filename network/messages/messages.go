@@ -133,7 +133,6 @@ func handleOutboundConnection(server string, shouldDisconnectChannel chan bool) 
 			gSendForwardChannel <- messageToSend
 			select {
 			case <-pingAckReceivedChannel:
-				fmt.Printf("Connected\n")
 				// We received a PingAck, so everything works fine
 				break
 			case <-time.After(1 * time.Second):
@@ -260,6 +259,7 @@ func sendMessages(conn net.Conn, messageToSendChannel chan Message, errorChannel
 			// However, the connection is not working so disconnect.
 			messageToSendChannel <- messageToSend
 			// errorChannel <- err
+			// TODO: Legg til x antall ganger det her kan skje
 			return
 		}
 	}

@@ -53,11 +53,19 @@ func buttonHandler() {
 	for {
 		buttonEvent := <-drv_buttons
 		fmt.Println(buttonEvent)
+		currentFloor, _ := store.GetCurrentFloor(selfIP)
+
+		if buttonEvent.Floor == currentFloor && buttonEvent.Button != elevio.BT_Cab {
+			openAndCloseDoors(buttonEvent.Floor)
+			continue
+		}
 		// Håndtere callen
 		if buttonEvent.Button == elevio.BT_Cab {
-			// Cab call
-			elevio.SetButtonLamp(elevio.BT_Cab, buttonEvent.Floor, true)
-			store.AddCabCall(selfIP, buttonEvent.Floor)
+			if buttonEvent.Floor != currentFloor {
+				// Cab call
+				elevio.SetButtonLamp(elevio.BT_Cab, buttonEvent.Floor, true)
+				store.AddCabCall(selfIP, buttonEvent.Floor)
+			}
 		} else {
 			// Hall call
 			elevDir := btnDirToElevDir(buttonEvent.Button)
@@ -65,16 +73,12 @@ func buttonHandler() {
 
 			// Create and send HallCall
 			hCall := elevators.HallCall_s{Floor: buttonEvent.Floor, Direction: elevDir}
+			fmt.Printf("Most suited: %s\n", mostSuitedIP)
 			if mostSuitedIP == selfIP {
 				store.AddHallCall(selfIP, hCall)
 			}
 			order_distributor.SendHallCall(mostSuitedIP, hCall)
 		}
-		select {
-		case order_distributor.SendStateUpdate <- true:
-		default:
-		}
-
 	}
 }
 
@@ -117,6 +121,7 @@ func hcLightDriver() {
 		}
 
 		<-store.ShouldRecalculateHCLightsChannel
+		fmt.Printf("TURN ON THE LIGHTS BABY\n")
 	}
 }
 

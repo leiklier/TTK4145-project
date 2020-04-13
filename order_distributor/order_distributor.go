@@ -30,7 +30,6 @@ func SendElevState(state elevators.Elevator_s) bool {
 }
 
 func SendHallCall(ip string, hCall elevators.HallCall_s) bool { // Not tested
-	fmt.Printf("Sending to %s\n", ip)
 	hCallBytes, err := json.Marshal(hCall)
 	if err != nil {
 		return false
@@ -46,9 +45,10 @@ func SendUpdate() {
 		case <-SendStateUpdate:
 			state, _ := store.GetElevator(selfIP)
 			SendElevState(state)
+			fmt.Printf("Sending state update\n")
 			break
 
-		case <-time.After(3 * time.Second):
+		case <-time.After(10 * time.Second):
 			state, _ := store.GetElevator(selfIP)
 			SendElevState(state)
 			break

@@ -7,9 +7,10 @@ import (
 	"strings"
 	"time"
 
+	"../../sync/store"
+	"../bcast"
 	"../messages"
 	"../peers"
-	"../bcast"
 )
 
 const gBCASTPORT = 6971
@@ -108,6 +109,7 @@ func ringWatcher() {
 			fmt.Printf("Disconnect : %s\n", disconnectedIP)
 
 			peers.Remove(disconnectedIP)
+			store.Remove(disconnectedIP) // This might be bad!
 			if peers.IsAlone() {
 				break
 			}
@@ -154,7 +156,6 @@ func sendJoinMSG(innPort string) {
 ////////////////////////////////////////////////////
 // Helper functions
 ////////////////////////////////////////////////////
-
 
 // Makes it possible to have timeout on udp read
 func nonBlockingRead(readChn chan<- string) { // This is iffy, was a quick fix

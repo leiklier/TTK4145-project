@@ -16,8 +16,8 @@ var gStateMutex sync.Mutex
 
 const NumFloors = 4
 
-var ShouldRecalculateNextFloorChannel = make(chan bool)
-var ShouldRecalculateHCLightsChannel = make(chan bool)
+var ShouldRecalculateNextFloorChannel = make(chan bool, 100)
+var ShouldRecalculateHCLightsChannel = make(chan bool, 100)
 
 func Init() {
 	gStateMutex.Lock()
