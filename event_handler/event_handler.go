@@ -108,7 +108,7 @@ func hcLightDriver() {
 			elevio.SetButtonLamp(elevio.BT_HallUp, floor, value[1])
 		}
 
-		<- store.ShouldRecalculateHCLightsChannel
+		<-store.ShouldRecalculateHCLightsChannel
 	}
 }
 
@@ -136,11 +136,10 @@ func goToFloor(destinationFloor int) {
 			elevio.SetFloorIndicator(floor)
 			// CLear everything onn this floor
 			store.SetCurrentFloor(selfIP, floor)
-			store.RemoveCabCall(selfIP, floor)
-			store.RemoveHallCalls(selfIP, floor)
-
 
 			if floor == destinationFloor {
+				store.RemoveCabCall(selfIP, floor)
+				store.RemoveHallCalls(selfIP, floor)
 				elevio.SetMotorDirection(elevators.DirectionIdle) // Stop elevator and set lamps and stuff
 				store.SetDirectionMoving(selfIP, elevators.DirectionIdle)
 
