@@ -70,7 +70,11 @@ func buttonHandler() {
 			}
 			order_distributor.SendHallCall(mostSuitedIP, hCall)
 		}
-		// Send update/state
+		select {
+		case order_distributor.SendStateUpdate <- true:
+		default:
+		}
+
 	}
 }
 
@@ -79,8 +83,12 @@ func elevatorDriver(nextFloorChan chan int) {
 
 	for {
 		nextFloor := <-nextFloorChan
-		fmt.Printf("nextFloor: %d\n", nextFloor)
+		// fmt.Printf("nextFloor: %d\n", nextFloor)
 		goToFloor(nextFloor)
+		select {
+		case order_distributor.SendStateUpdate <- true:
+		default:
+		}
 		// Send update/state
 	}
 }
@@ -136,10 +144,10 @@ func goToFloor(destinationFloor int) {
 			elevio.SetFloorIndicator(floor)
 			// CLear everything onn this floor
 			store.SetCurrentFloor(selfIP, floor)
-			store.RemoveCabCall(selfIP, floor)
-			store.RemoveHallCalls(selfIP, floor)
 
 			if floor == destinationFloor {
+				store.RemoveCabCall(selfIP, floor)
+				store.RemoveHallCalls(selfIP, floor)
 				elevio.SetMotorDirection(elevators.DirectionIdle) // Stop elevator and set lamps and stuff
 				store.SetDirectionMoving(selfIP, elevators.DirectionIdle)
 

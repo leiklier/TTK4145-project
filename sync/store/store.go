@@ -226,13 +226,13 @@ func UpdateState(elevator elevators.Elevator_s) {
 	Add(elevator)
 
 	select {
-		case ShouldRecalculateNextFloorChannel <- true: // Only add to channel if not full
-		default:
+	case ShouldRecalculateNextFloorChannel <- true: // Only add to channel if not full
+	default:
 	}
 
 	select {
-		case ShouldRecalculateHCLightsChannel <- true:
-		default:
+	case ShouldRecalculateHCLightsChannel <- true:
+	default:
 	}
 }
 
