@@ -66,9 +66,7 @@ func RemovedPeerListener() {
 			store.Remove(disconectedPeer)
 			for _, hc := range hall_calls {
 				mostSuitedIP := store.MostSuitedElevator(hc.Floor, hc.Direction)
-				if mostSuitedIP == selfIP {
-					store.AddHallCall(selfIP, hc)
-				}
+				store.AddHallCall(selfIP, hc)
 				SendHallCall(mostSuitedIP, hc)
 			}
 		}

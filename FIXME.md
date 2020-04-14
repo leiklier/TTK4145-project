@@ -1,7 +1,7 @@
 # Hola manola dette må fikses!
 
 ## Schindlers liste:
-- Koble peers med store ✅ 
+- Koble peers med store ✅ (Gjør det med tre heiser, husk å sende rundt)
 - Sende statesssssssssssssss-K ✅
 - Hall call lamper må lyse -L ✅
 - Fix out of range error på SubToDest - J ✅
@@ -15,7 +15,3 @@
 - SubToDest må iterere kun når store oppdateres, også skal den kun spytte ut når nextFloor er ulik currentFloor - L ✅
 ---------------------------------------------------------
 - Catch some errorz -A
-
-### Leaderboard:
-
-FOLLOW MY TIK TOK @jakvah
