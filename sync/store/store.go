@@ -30,6 +30,26 @@ func Init() {
 	gState[0] = elevators.New(localHostname, NumFloors, selfInitialFloor)
 }
 
+func IsExistingHallCall(hallCall elevators.HallCall_s) bool {
+	allElevators := GetAll()
+	for _, elevator := range allElevators {
+		currHallCall := elevator.GetAllHallCalls()[hallCall.Floor]
+		if hallCall.Direction == elevators.DirectionUp &&
+			(currHallCall.Direction == elevators.DirectionUp || currHallCall.Direction == elevators.DirectionBoth) {
+			return true
+		} else if hallCall.Direction == elevators.DirectionDown &&
+			(currHallCall.Direction == elevators.DirectionDown || currHallCall.Direction == elevators.DirectionBoth) {
+			return true
+		} else if hallCall.Direction == elevators.DirectionBoth &&
+			currHallCall.Direction != elevators.DirectionIdle {
+			return true
+		}
+
+	}
+
+	return false
+}
+
 func Add(newElevator elevators.Elevator_s) error {
 	// gStateMutex.Lock()
 	// defer gStateMutex.Unlock()

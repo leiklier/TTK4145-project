@@ -48,7 +48,6 @@ func SendUpdate() {
 		case <-SendStateUpdate:
 			state, _ := store.GetElevator(selfIP)
 			SendElevState(state)
-			fmt.Printf("Sending state update\n")
 			break
 
 		case <-time.After(10 * time.Second):
@@ -67,7 +66,6 @@ func RemovedPeerListener() {
 			store.Remove(disconectedPeer)
 			for _, hc := range hall_calls {
 				mostSuitedIP := store.MostSuitedElevator(hc.Floor, hc.Direction)
-				fmt.Printf("Most suited: %s\n", mostSuitedIP)
 				if mostSuitedIP == selfIP {
 					store.AddHallCall(selfIP, hc)
 				}
@@ -81,21 +79,23 @@ func ListenElevatorUpdate() {
 	call_channel := ring.GetReceiver(Call)
 	state_channel := ring.GetReceiver(State)
 
-	callMap := make(map[string][]byte)
-	hCall := elevators.HallCall_s{}
-
 	for {
 		select {
 		case stateBytes := <-state_channel:
 			state := elevators.UnmarshalElevatorState(stateBytes)
 			store.UpdateState(state)
 			break
+
 		case call := <-call_channel:
+			callMap := make(map[string][]byte)
+			hCall := elevators.HallCall_s{}
 			json.Unmarshal(call, &callMap)
-			hCallBytes, found := callMap[selfIP]
-			if found {
+			// hCallBytes, found := callMap[selfIP]
+			for ip, hCallBytes := range callMap {
 				json.Unmarshal(hCallBytes, &hCall)
-				store.AddHallCall(selfIP, hCall)
+				fmt.Println("Received most suited: ", ip)
+				fmt.Println("Hallcall received: ", hCall)
+				store.AddHallCall(ip, hCall)
 			}
 
 		}

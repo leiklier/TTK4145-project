@@ -20,7 +20,8 @@ var drv_buttons = make(chan elevio.ButtonEvent)
 var drv_floors = make(chan int)
 var drv_obstr = make(chan bool)
 var drv_stop = make(chan bool)
-var nextFloor = make(chan int)
+
+// var nextFloor = make(chan int)
 
 // Init Her skjer det
 func Init(elevNumber int) {
@@ -39,8 +40,8 @@ func Init(elevNumber int) {
 
 	store.SetCurrentFloor(selfIP, store.NumFloors-1)
 
-	go nextfloor.SubscribeToDestinationUpdates(nextFloor)
-	go elevatorDriver(nextFloor)
+	// go nextfloor.SubscribeToDestinationUpdates(nextFloor)
+	go elevatorDriver()
 	go hcLightDriver()
 	go buttonHandler()
 
@@ -57,7 +58,7 @@ func buttonHandler() {
 		currentFloor, _ := store.GetCurrentFloor(selfIP)
 
 		if buttonEvent.Floor == currentFloor && buttonEvent.Button != elevio.BT_Cab {
-			openAndCloseDoors(buttonEvent.Floor)
+			openAndCloseDoors(currentFloor)
 			continue
 		}
 		// Håndtere callen
@@ -69,31 +70,44 @@ func buttonHandler() {
 			}
 		} else {
 			// Hall call
+			// Create HallCall
 			elevDir := btnDirToElevDir(buttonEvent.Button)
-			mostSuitedIP := store.MostSuitedElevator(buttonEvent.Floor, elevDir)
-
-			// Create and send HallCall
 			hCall := elevators.HallCall_s{Floor: buttonEvent.Floor, Direction: elevDir}
-			fmt.Printf("Most suited: %s\n", mostSuitedIP)
-			if mostSuitedIP == selfIP {
-				store.AddHallCall(selfIP, hCall)
+			if store.IsExistingHallCall(hCall) {
+				continue
 			}
+			mostSuitedIP := store.MostSuitedElevator(buttonEvent.Floor, elevDir)
+			fmt.Printf("Most suited ip: %s\n", mostSuitedIP)
+
+			store.AddHallCall(mostSuitedIP, hCall)
 			order_distributor.SendHallCall(mostSuitedIP, hCall)
 		}
 	}
 }
 
-func elevatorDriver(nextFloorChan chan int) {
+func elevatorDriver() {
 	goToFloor(0)
 
 	for {
-		nextFloor := <-nextFloorChan
-		// fmt.Printf("nextFloor: %d\n", nextFloor)
-		goToFloor(nextFloor)
-		select {
-		case order_distributor.SendStateUpdate <- true:
-		default:
+		// nextFloor := <-nextFloorChan
+		currentFloor, _ := store.GetCurrentFloor(selfIP)
+		if store.IsExistingHallCall(elevators.HallCall_s{Floor: currentFloor, Direction: elevators.DirectionBoth}) {
+			openAndCloseDoors(currentFloor)
+			// clear hall call
+
+			store.RemoveHallCalls(selfIP, currentFloor)
+			select {
+			case order_distributor.SendStateUpdate <- true:
+			default:
+			}
 		}
+
+		nextFloor := nextfloor.SubscribeToDestinationUpdates()
+		// fmt.Printf("nextFloor: %d\n", nextFloor)
+		if nextFloor != -1 {
+			goToFloor(nextFloor)
+		}
+		<-store.ShouldRecalculateNextFloorChannel
 		// Send update/state
 	}
 }
@@ -122,7 +136,6 @@ func hcLightDriver() {
 		}
 
 		<-store.ShouldRecalculateHCLightsChannel
-		fmt.Printf("TURN ON THE LIGHTS BABY\n")
 	}
 }
 
@@ -136,6 +149,7 @@ func goToFloor(destinationFloor int) {
 		direction = elevators.DirectionDown
 	} else {
 		// WE DONT HAVE TO MOVE SINCE WE ARE ALREADY HERE
+		// fmt.Println("Same floor idiot")
 		store.RemoveCabCall(selfIP, currentFloor)
 		store.RemoveHallCalls(selfIP, currentFloor)
 
@@ -151,6 +165,11 @@ func goToFloor(destinationFloor int) {
 			// CLear everything onn this floor
 			store.SetCurrentFloor(selfIP, floor)
 
+			select {
+			case order_distributor.SendStateUpdate <- true:
+			default:
+			}
+
 			if floor == destinationFloor {
 				store.RemoveCabCall(selfIP, floor)
 				store.RemoveHallCalls(selfIP, floor)
@@ -158,6 +177,10 @@ func goToFloor(destinationFloor int) {
 				store.SetDirectionMoving(selfIP, elevators.DirectionIdle)
 
 				openAndCloseDoors(floor)
+				select {
+				case order_distributor.SendStateUpdate <- true:
+				default:
+				}
 				return
 			}
 			break

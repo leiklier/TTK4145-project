@@ -10,40 +10,41 @@ import (
 
 // SubscribeToDestinationUpdates :)
 // Kan kjøres både som goroutine eller som funksjonskall
-func SubscribeToDestinationUpdates(nextFloor chan int) {
-	for {
-		cabCalls, _ := store.GetAllCabCalls(peers.GetRelativeTo(peers.Self, 0))
-		hallCalls, _ := store.GetAllHallCalls(peers.GetRelativeTo(peers.Self, 0))
-		currDir, _ := store.GetDirectionMoving(peers.GetRelativeTo(peers.Self, 0))
-		currFloor, _ := store.GetCurrentFloor(peers.GetRelativeTo(peers.Self, 0))
+func SubscribeToDestinationUpdates() int {
+	// for {
+	cabCalls, _ := store.GetAllCabCalls(peers.GetRelativeTo(peers.Self, 0))
+	hallCalls, _ := store.GetAllHallCalls(peers.GetRelativeTo(peers.Self, 0))
+	currDir, _ := store.GetDirectionMoving(peers.GetRelativeTo(peers.Self, 0))
+	currFloor, _ := store.GetCurrentFloor(peers.GetRelativeTo(peers.Self, 0))
 
-		switch currDir {
-		case elevators.DirectionDown:
-			nf := searchUnderneath(currFloor, hallCalls, cabCalls)
-			if nf != -1 {
-				nextFloor <- nf
-			}
-
-		case elevators.DirectionUp:
-			nf := searchAbove(currFloor, hallCalls, cabCalls)
-			if nf != -1 {
-				nextFloor <- nf
-			}
-
-		case elevators.DirectionIdle:
-			// Denne kan egntlig håndere hele suppen hvis vi kun sjekker på idle
-			nf := searchBoth(currFloor, hallCalls, cabCalls)
-			if nf != -1 {
-				nextFloor <- nf
-			}
-
-		default:
-			fmt.Println("Get the Bible and pray!")
+	switch currDir {
+	case elevators.DirectionDown:
+		nf := searchUnderneath(currFloor, hallCalls, cabCalls)
+		if nf != -1 {
+			return nf
 		}
-		// Only rerun when store has changed:
-		<-store.ShouldRecalculateNextFloorChannel
+
+	case elevators.DirectionUp:
+		nf := searchAbove(currFloor, hallCalls, cabCalls)
+		if nf != -1 {
+			return nf
+		}
+
+	case elevators.DirectionIdle:
+		// Denne kan egntlig håndere hele suppen hvis vi kun sjekker på idle
+		nf := searchBoth(currFloor, hallCalls, cabCalls)
+		if nf != -1 {
+			return nf
+		}
+
+	default:
+		fmt.Println("Get the Bible and pray!")
 	}
+	// Only rerun when store has changed:
+	return -1
 }
+
+// }
 
 // Returns nextFloor. If there are no more orders, it returns -1
 func searchAbove(currFloor int, hallCalls []elevators.HallCall_s, cabCalls []bool) int {
@@ -64,7 +65,7 @@ func searchAbove(currFloor int, hallCalls []elevators.HallCall_s, cabCalls []boo
 			if hc.Direction != elevators.DirectionIdle {
 				nextHall := i
 				if nextHall < nextCab {
-					fmt.Println("Returning hallCall")
+					fmt.Println("Nextfloor is hallcall at: ", nextHall)
 					return nextHall
 				}
 				break
@@ -101,7 +102,7 @@ func searchUnderneath(currFloor int, hallCalls []elevators.HallCall_s, cabCalls 
 			if hallCalls[i].Direction != elevators.DirectionIdle {
 				nextHall := i
 				if nextHall > nextCab {
-					fmt.Println("Returning hallCall")
+					fmt.Println("Nextfloor is hallcall at: ", nextHall)
 					return nextHall
 				}
 				break
@@ -134,7 +135,7 @@ func searchBoth(currFloor int, hallCalls []elevators.HallCall_s, cabCalls []bool
 				return lowerSearchIndex
 			}
 			if hallCalls[lowerSearchIndex].Direction != elevators.DirectionIdle {
-				fmt.Println("Returning hallCall")
+				fmt.Println("Nextfloor is hallcall at: ", lowerSearchIndex)
 				return lowerSearchIndex
 			}
 		}
@@ -144,7 +145,7 @@ func searchBoth(currFloor int, hallCalls []elevators.HallCall_s, cabCalls []bool
 				return higherSearchIndex
 			}
 			if hallCalls[higherSearchIndex].Direction != elevators.DirectionIdle {
-				fmt.Println("Returning hallCall")
+				fmt.Println("Nextfloor is hallcall at: ", higherSearchIndex)
 				return higherSearchIndex
 			}
 		}
