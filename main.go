@@ -21,6 +21,7 @@ func main() {
 	elevNumber, _ := strconv.Atoi(elevNumberStr)
 
 	err := ring.Init(inport)
+	fmt.Println("Initting from store...")
 	store.Init()
 	// if elevNumber == 0 {
 	// 	 spawnElevators()
@@ -29,9 +30,10 @@ func main() {
 	if err != nil {
 		fmt.Println(err)
 	}
-
+	fmt.Println("Initting from od...")
 	order_distributor.Init()
 	// go store.PrintStateAll()
+	fmt.Println("Initting from even...")
 	event_handler.Init(elevNumber)
 
 	bufio.NewReader(os.Stdin).ReadBytes('\n')
