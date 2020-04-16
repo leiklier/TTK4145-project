@@ -58,10 +58,19 @@ func WriteCCBackup(cabCalls []bool, filename string) {
 }
 
 func ReadCCBackup(filename string) []bool {
+	// Check if the file exists
+	_, err := os.Stat(filename)
+	
+	if err != nil {
+		fmt.Println("File does not exist, initializing",filename);
+		InitCCBackupFile(filename)  
+	}
+
+	// File now 100% exists and we can proceed
 	file, err := os.Open(filename)
 	if err != nil {
 		log.Fatal(err)
-	}
+		}
 
 	stream, err := ioutil.ReadFile(filename)
 	if err != nil {
@@ -82,6 +91,18 @@ func ReadCCBackup(filename string) []bool {
 		}
 	}
 	return newcc
+}
+
+// Initializes with no CC
+func InitCCBackupFile (filename string) {
+	file, err := os.Create(filename)
+	if err != nil {
+		fmt.Println("Failed to create backup file!")
+		log.Fatal(err)
+	}
+	file.Close()
+	var cc = []bool{true, false, false, false}
+	WriteCCBackup(cc,filename)
 }
 
 func Init() {
