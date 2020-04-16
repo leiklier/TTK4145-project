@@ -277,6 +277,9 @@ func AddCabCall(elevatorHostname string, floor int) error {
 
 	elevator.AddCabCall(floor)
 	Replace(elevator)
+	cc, _ := GetAllCabCalls(peers.GetRelativeTo(peers.Self, 0))
+	WriteCCBackup(cc, BACKUPNAME)
+
 	return nil
 }
 
@@ -288,6 +291,10 @@ func RemoveCabCall(elevatorHostname string, floor int) error {
 
 	elevator.RemoveCabCall(floor)
 	Replace(elevator)
+
+	cc, _ := GetAllCabCalls(peers.GetRelativeTo(peers.Self, 0))
+	WriteCCBackup(cc, BACKUPNAME)
+
 	return nil
 
 }
