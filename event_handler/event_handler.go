@@ -31,7 +31,7 @@ func Init(elevNumber int) {
 	selfIP = peers.GetRelativeTo(peers.Self, 0)
 	connPort := strconv.Itoa(15657 + elevNumber)
 	time.Sleep(time.Duration(1 * time.Second)) // To avoid crash due to not started sim
-	fmt.Println("Initting...")
+	
 	elevio.Init("localhost:"+connPort, store.NumFloors)
 
 	go elevio.PollButtons(drv_buttons) // Etasje og hvilken type knapp som blir trykket
@@ -50,8 +50,10 @@ func Init(elevNumber int) {
 
 func buttonHandler() {
 	// Reset all Cab call lamps:
-	//cabCalls, _ := store.GetAllCabCalls(selfIP)
-	//for cabCall, floor
+	cabCalls, _ := store.GetAllCabCalls(selfIP)
+	for floor, cabCall := range cabCalls {
+		elevio.SetButtonLamp(elevio.BT_Cab,floor,cabCall)
+	}
 
 	for {
 		buttonEvent := <-drv_buttons
