@@ -85,7 +85,6 @@ func ReadCCBackup(filename string) []bool {
 
 func Init() {
 	gStateMutex.Lock()
-	
 
 	gState = make([]elevators.Elevator_s, 1)
 	localHostname := peers.GetRelativeTo(peers.Self, 0)
@@ -93,15 +92,12 @@ func Init() {
 	selfInitialFloor := 0
 	gState[0] = elevators.New(localHostname, NumFloors, selfInitialFloor)
 	gStateMutex.Unlock()
-	fmt.Println("All good so far!")
 	// Load CC From file
 	ccFromFile := ReadCCBackup(BACKUPNAME)
-	fmt.Println("Skulle tro man kom hit")
-	fmt.Println(ccFromFile)
+
+	fmt.Println("From the backup file I've got:", ccFromFile)
 	for i, e := range ccFromFile {
-		fmt.Println("Loop nr",i)
 		if e {
-			fmt.Println("Må legge inn en cC")
 			AddCabCall(localHostname, i)
 		}
 	}
@@ -192,10 +188,8 @@ func GetAll() []elevators.Elevator_s {
 }
 
 func GetElevator(elevatorHostname string) (elevators.Elevator_s, error) {
-	fmt.Println("lalalal")
 	gStateMutex.Lock()
 	defer gStateMutex.Unlock()
-	fmt.Println("lililil")
 	for _, elevatorInStore := range gState {
 		if elevatorInStore.GetHostname() == elevatorHostname {
 			return elevatorInStore, nil
@@ -296,19 +290,17 @@ func GetAllHallCalls(elevatorHostname string) ([]elevators.HallCall_s, error) {
 }
 
 func AddCabCall(elevatorHostname string, floor int) error {
-	fmt.Println("Her stopper jeg, feilen skjer på linjen under")
 	elevator, err := GetElevator(elevatorHostname)
-	
-	
+
 	if err != nil {
 		return err
 	}
-	
+
 	elevator.AddCabCall(floor)
 	Replace(elevator)
-	
+
 	cc, _ := GetAllCabCalls(peers.GetRelativeTo(peers.Self, 0))
-	fmt.Println("I've updated, current cc state:,",cc)
+	fmt.Println("I've updated, current cc state:,", cc)
 	WriteCCBackup(cc, BACKUPNAME)
 
 	return nil
