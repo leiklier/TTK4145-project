@@ -19,7 +19,8 @@ var gState []elevators.Elevator_s
 var gStateMutex sync.Mutex
 
 const NumFloors = 4
-const BACKUPNAME = "backup.txt" //Blir dette et problem når vi tester på 1 pc?
+
+var BACKUPNAME string // Blir dette et problem når vi tester på 1 pc?
 
 var ShouldRecalculateNextFloorChannel = make(chan bool, 100)
 var ShouldRecalculateHCLightsChannel = make(chan bool, 100)
@@ -88,6 +89,7 @@ func Init() {
 
 	gState = make([]elevators.Elevator_s, 1)
 	localHostname := peers.GetRelativeTo(peers.Self, 0)
+	BACKUPNAME = "backup_" + localHostname + ".txt"
 
 	selfInitialFloor := 0
 	gState[0] = elevators.New(localHostname, NumFloors, selfInitialFloor)
