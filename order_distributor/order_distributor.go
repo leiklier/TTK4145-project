@@ -81,7 +81,7 @@ func ListenElevatorUpdate() {
 		select {
 		case stateBytes := <-state_channel:
 			state := elevators.UnmarshalElevatorState(stateBytes)
-			store.UpdateState(state)
+			store.Replace(state)
 			break
 
 		case call := <-call_channel:

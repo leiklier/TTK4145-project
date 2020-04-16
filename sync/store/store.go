@@ -51,8 +51,8 @@ func IsExistingHallCall(hallCall elevators.HallCall_s) bool {
 }
 
 func Add(newElevator elevators.Elevator_s) error {
-	// gStateMutex.Lock()
-	// defer gStateMutex.Unlock()
+	gStateMutex.Lock()
+	defer gStateMutex.Unlock()
 
 	for _, elevatorInStore := range gState {
 		if newElevator.GetHostname() == elevatorInStore.GetHostname() {
@@ -65,15 +65,44 @@ func Add(newElevator elevators.Elevator_s) error {
 }
 
 func Remove(HostnameToRemove string) {
-	// gStateMutex.Lock()
-	// defer gStateMutex.Unlock()
+	gStateMutex.Lock()
+	defer gStateMutex.Unlock()
 
 	for i, currentElevator := range gState {
 		if currentElevator.GetHostname() == HostnameToRemove {
-			copy(gState[i:], gState[i+1:])                 // Shift peers[i+1:] left one index.
+			copy(gState[i:], gState[i+1:])                 // Shift gState[i+1:] left one index.
 			gState[len(gState)-1] = elevators.Elevator_s{} // Erase last element (write nil value).
 			gState = gState[:len(gState)-1]                // Truncate slice.
+			break
 		}
+	}
+}
+
+func Replace(elevator elevators.Elevator_s) {
+	gStateMutex.Lock()
+	defer gStateMutex.Unlock()
+
+	// Remove it...
+	for i, currentElevator := range gState {
+		if currentElevator.GetHostname() == elevator.GetHostname() {
+			copy(gState[i:], gState[i+1:])                 // Shift gState[i+1:] left one index.
+			gState[len(gState)-1] = elevators.Elevator_s{} // Erase last element (write nil value).
+			gState = gState[:len(gState)-1]                // Truncate slice.
+			break
+		}
+	}
+
+	// ...and then add it again
+	gState = append(gState, elevator)
+
+	select {
+	case ShouldRecalculateNextFloorChannel <- true: // Only add to channel if not full
+	default:
+	}
+
+	select {
+	case ShouldRecalculateHCLightsChannel <- true:
+	default:
 	}
 }
 
@@ -113,10 +142,8 @@ func SetCurrentFloor(elevatorHostname string, currentFloor int) error {
 		return err
 	}
 
-	gStateMutex.Lock()
-	defer gStateMutex.Unlock()
 	elevator.SetCurrentFloor(currentFloor)
-	UpdateState(elevator)
+	Replace(elevator)
 	return nil
 }
 
@@ -149,11 +176,8 @@ func SetDirectionMoving(elevatorHostname string, newDirection elevators.Directio
 	if err != nil {
 		return err
 	}
-
-	gStateMutex.Lock()
-	defer gStateMutex.Unlock()
 	elevator.SetDirectionMoving(newDirection)
-	UpdateState(elevator)
+	Replace(elevator)
 	return nil
 }
 
@@ -163,10 +187,8 @@ func AddHallCall(elevatorHostname string, hallCall elevators.HallCall_s) error {
 		return err
 	}
 
-	gStateMutex.Lock()
-	defer gStateMutex.Unlock()
 	elevator.AddHallCall(hallCall)
-	UpdateState(elevator)
+	Replace(elevator)
 	return nil
 }
 
@@ -176,10 +198,8 @@ func RemoveHallCalls(elevatorHostname string, floor int) error {
 		return err
 	}
 
-	gStateMutex.Lock()
-	defer gStateMutex.Unlock()
 	elevator.RemoveHallCalls(floor)
-	UpdateState(elevator)
+	Replace(elevator)
 	return nil
 }
 
@@ -201,10 +221,8 @@ func AddCabCall(elevatorHostname string, floor int) error {
 		return err
 	}
 
-	gStateMutex.Lock()
-	defer gStateMutex.Unlock()
 	elevator.AddCabCall(floor)
-	UpdateState(elevator)
+	Replace(elevator)
 	return nil
 }
 
@@ -214,10 +232,8 @@ func RemoveCabCall(elevatorHostname string, floor int) error {
 		return err
 	}
 
-	gStateMutex.Lock()
-	defer gStateMutex.Unlock()
 	elevator.RemoveCabCall(floor)
-	UpdateState(elevator)
+	Replace(elevator)
 	return nil
 
 }
@@ -239,21 +255,6 @@ func MostSuitedElevator(hcFloor int, hcDirection elevators.Direction_e) string {
 	defer gStateMutex.Unlock()
 
 	return costfunction.MostSuitedElevator(gState, NumFloors, hcFloor, hcDirection)
-}
-
-func UpdateState(elevator elevators.Elevator_s) {
-	Remove(elevator.GetHostname())
-	Add(elevator)
-
-	select {
-	case ShouldRecalculateNextFloorChannel <- true: // Only add to channel if not full
-	default:
-	}
-
-	select {
-	case ShouldRecalculateHCLightsChannel <- true:
-	default:
-	}
 }
 
 func PrintStateAll() {
