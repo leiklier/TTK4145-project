@@ -3,6 +3,10 @@ package store
 import (
 	"errors"
 	"fmt"
+	"io/ioutil"
+	"log"
+	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -15,9 +19,59 @@ var gState []elevators.Elevator_s
 var gStateMutex sync.Mutex
 
 const NumFloors = 4
+const BACKUPNAME = "backup.txt" //Blir dette et problem når vi tester på 1 pc?
 
 var ShouldRecalculateNextFloorChannel = make(chan bool, 100)
 var ShouldRecalculateHCLightsChannel = make(chan bool, 100)
+
+func WriteCCBackup(cabCalls []bool, filename string) {
+	file, err := os.Create(filename)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	t := time.Now()
+	tstring := t.String()
+	date := strings.Split(tstring, " ")[0]
+	time := strings.Split(tstring, " ")[1]
+
+	ccString := "("
+	for i, v := range cabCalls {
+		if i != (len(cabCalls) - 1) {
+			if v {
+				ccString = ccString + "true,"
+			} else {
+				ccString = ccString + "false,"
+			}
+		} else {
+			if v {
+				ccString = ccString + "true"
+			} else {
+				ccString = ccString + "false"
+			}
+		}
+
+	}
+	ccString = ccString + ")"
+	file.WriteString(ccString + ";" + date + " " + time)
+	file.Close()
+}
+
+func ReadCCBackup(filename string) string {
+	file, err := os.Open(filename)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	stream, err := ioutil.ReadFile(filename)
+	if err != nil {
+		log.Fatal(err)
+	}
+	s := string(stream)
+	file.Close()
+
+	return s
+}
 
 func Init() {
 	gStateMutex.Lock()

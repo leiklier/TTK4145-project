@@ -67,6 +67,8 @@ func buttonHandler() {
 				// Cab call
 				elevio.SetButtonLamp(elevio.BT_Cab, buttonEvent.Floor, true)
 				store.AddCabCall(selfIP, buttonEvent.Floor)
+				// Update backup of CC
+				store.WriteCCBackup(store.GetAllCabCalls(selfIP), store.BACKUPNAME)
 			}
 		} else {
 			// Hall call
@@ -151,6 +153,8 @@ func goToFloor(destinationFloor int) {
 		// WE DONT HAVE TO MOVE SINCE WE ARE ALREADY HERE
 		// fmt.Println("Same floor idiot")
 		store.RemoveCabCall(selfIP, currentFloor)
+		// Update backup of CC
+		store.WriteCCBackup(store.GetAllCabCalls(selfIP), store.BACKUPNAME)
 		store.RemoveHallCalls(selfIP, currentFloor)
 
 		return
