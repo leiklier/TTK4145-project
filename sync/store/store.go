@@ -35,7 +35,7 @@ func WriteCCBackup(cabCalls []bool, filename string) {
 	date := strings.Split(tstring, " ")[0]
 	time := strings.Split(tstring, " ")[1]
 
-	ccString := "("
+	var ccString string
 	for i, v := range cabCalls {
 		if i != (len(cabCalls) - 1) {
 			if v {
@@ -52,12 +52,11 @@ func WriteCCBackup(cabCalls []bool, filename string) {
 		}
 
 	}
-	ccString = ccString + ")"
 	file.WriteString(ccString + ";" + date + " " + time)
 	file.Close()
 }
 
-func ReadCCBackup(filename string) string {
+func ReadCCBackup(filename string) []bool {
 	file, err := os.Open(filename)
 	if err != nil {
 		log.Fatal(err)
@@ -70,7 +69,18 @@ func ReadCCBackup(filename string) string {
 	s := string(stream)
 	file.Close()
 
-	return s
+	onlyCC := strings.Split(s, ";")[0]
+	fmt.Println(onlyCC)
+	ccs := strings.Split(onlyCC, ",")
+	var newcc []bool
+	for _, i := range ccs {
+		if i == "true" {
+			newcc = append(newcc, true)
+		} else {
+			newcc = append(newcc, false)
+		}
+	}
+	return newcc
 }
 
 func Init() {
@@ -82,6 +92,15 @@ func Init() {
 
 	selfInitialFloor := 0
 	gState[0] = elevators.New(localHostname, NumFloors, selfInitialFloor)
+
+	// Load CC From file
+	ccFromFile := ReadCCBackup(BACKUPNAME)
+	for i, e := range ccFromFile {
+		if e {
+			AddCabCall(localHostname, i)
+		}
+	}
+
 }
 
 func IsExistingHallCall(hallCall elevators.HallCall_s) bool {
