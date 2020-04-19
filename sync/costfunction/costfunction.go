@@ -68,8 +68,8 @@ func MostSuitedElevator(allElevators []elevators.Elevator_s, numFloors int, hcFl
 	} else {
 		// There are HC in at least one elevator that must be taken into consideration
 
-		currMaxFS := 0
-		var currentMax string // Hostname of elevator with highest FSvalue
+		currMaxscore := 0
+		var currentMax string // Hostname of elevator with highest score value
 
 		for _, elevator := range allElevators {
 			currFloor := elevator.GetCurrentFloor()
@@ -94,18 +94,18 @@ func MostSuitedElevator(allElevators []elevators.Elevator_s, numFloors int, hcFl
 				goingTowards = true
 			}
 
-			var FS int
-			// Computing FS Values based upon cases:
+			var score int
+			// Computing score Values based upon cases:
 			if goingTowards && sameDir {
-				FS = (numFloors - 1) + 2 - floorDiff
+				score = (numFloors - 1) + 2 - floorDiff
 			} else if goingTowards && !sameDir {
-				FS = (numFloors - 1) + 1 - floorDiff
+				score = (numFloors - 1) + 1 - floorDiff
 			} else if !goingTowards {
-				FS = 1
+				score = 1
 			}
-			fmt.Println("FS Score of elevator", elevator.GetHostname(), "is:", FS)
-			if FS > currMaxFS {
-				currMaxFS = FS
+			fmt.Println("score Score of elevator", elevator.GetHostname(), "is:", score)
+			if score > currMaxscore {
+				currMaxscore = score
 				currentMax = elevator.GetHostname()
 			}
 		}
