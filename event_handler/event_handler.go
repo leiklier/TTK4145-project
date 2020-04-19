@@ -34,11 +34,12 @@ func Init(elevNumber int) {
 	store.SetCurrentFloor(selfHostname, store.NumFloors-1)
 
 	go elevatorDriver()
-	go hcLightDriver()
+	go hallCallLightDriver()
 	go buttonHandler()
 
 }
 
+// Handles action related to a button getting pressed
 func buttonHandler() {
 	// Reset all cab call button lamps:
 	cabCalls, _ := store.GetAllCabCalls(selfHostname)
@@ -97,7 +98,8 @@ func elevatorDriver() {
 	}
 }
 
-func hcLightDriver() {
+// Handles lights for hallcall buttons
+func hallCallLightDriver() {
 	for {
 		var lights [store.NumFloors][2]bool
 		allElevators := store.GetAll()
