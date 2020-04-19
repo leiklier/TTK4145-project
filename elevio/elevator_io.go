@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"../sync/elevators"
+	"../store/elevators"
 )
 
 const _pollRate = 20 * time.Millisecond

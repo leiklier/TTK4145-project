@@ -10,9 +10,9 @@ import (
 	"sync"
 	"time"
 
-	"../../network/peers"
-	"../costfunction"
-	"../elevators"
+	"../network/peers"
+	"./elevators"
+	"./costfunction"
 )
 
 var gState []elevators.Elevator_s

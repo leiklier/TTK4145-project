@@ -6,12 +6,13 @@ import (
 	"strconv"
 	"time"
 
+	"./next_floor"
+
 	"../elevio"
 	"../network/peers"
 	"../order_distributor"
-	"../sync/elevators"
-	"../sync/nextfloor"
-	"../sync/store"
+	"../store"
+	"../store/elevators"
 )
 
 var selfHostname string
@@ -78,6 +79,7 @@ func buttonHandler() {
 	}
 }
 
+// TODO: Leik fiks comment.
 func elevatorDriver() {
 	goToFloor(0)
 
@@ -90,8 +92,8 @@ func elevatorDriver() {
 			order_distributor.ShouldSendStateUpdate <- true
 		}
 
-		nextFloor := nextfloor.GetNextFloor()
-		if nextFloor != -1 {
+		nextFloor := next_floor.GetNextFloor()
+		if nextFloor != next_floor.NoNextFloor {
 			goToFloor(nextFloor)
 		}
 		<-store.ShouldRecalculateNextFloorChannel
@@ -169,7 +171,6 @@ func goToFloor(destinationFloor int) {
 			log.Fatal("Didn't reach floor in time!\n")
 		}
 	}
-
 }
 
 func openAndCloseDoors(floor int) {

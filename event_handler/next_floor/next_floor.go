@@ -1,12 +1,14 @@
-package nextfloor
+package next_floor
 
 import (
 	"fmt"
 
 	"../../network/peers"
-	"../elevators"
-	"../store"
+	"../../store"
+	"../../store/elevators"
 )
+
+const NoNextFloor = -1
 
 // GetNextFloor returns the nextfloor the elevator should travel to.
 // Returns -1 if there are no more orders to take
@@ -19,13 +21,13 @@ func GetNextFloor() int {
 	switch currentDirection {
 	case elevators.DirectionDown:
 		nf := searchUnderneath(currFloor, hallCalls, cabCalls)
-		if nf != -1 {
+		if nf != NoNextFloor {
 			return nf
 		}
 
 	case elevators.DirectionUp:
 		nf := searchAbove(currFloor, hallCalls, cabCalls)
-		if nf != -1 {
+		if nf != NoNextFloor {
 			return nf
 		}
 
@@ -33,7 +35,11 @@ func GetNextFloor() int {
 		nfAbove := searchAbove(currFloor, hallCalls, cabCalls)
 		nfUnderneath := searchUnderneath(currFloor, hallCalls, cabCalls)
 
-		if nfAbove != -1 || nfUnderneath != -1 {
+		if nfAbove == NoNextFloor {
+			return nfUnderneath
+		} else if nfUnderneath == NoNextFloor {
+			return nfAbove
+		} else {
 			if abs(currFloor-nfUnderneath) < abs(currFloor-nfAbove) {
 				return nfUnderneath
 			} else {
@@ -44,10 +50,10 @@ func GetNextFloor() int {
 	default:
 		fmt.Println("Get the Bible and pray!")
 	}
-	return -1
+	return NoNextFloor
 }
 
-// Returns nextFloor. If there are no more orders, it returns -1
+// Returns from above nextFloor. If there are no more orders, it returns -1
 func searchAbove(currFloor int, hallCalls []elevators.HallCall_s, cabCalls []bool) int {
 	nextCab := store.NumFloors + 1 // Init with too high
 	for i, cab := range cabCalls {

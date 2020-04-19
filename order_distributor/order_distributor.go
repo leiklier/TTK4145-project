@@ -4,11 +4,11 @@ import (
 	"encoding/json"
 	"time"
 
+	"../network"
 	"../network/peers"
-	"../network/ring"
 
-	"../sync/elevators"
-	"../sync/store"
+	"../store"
+	"../store/elevators"
 )
 
 //Message purposes
@@ -31,7 +31,7 @@ func Init() {
 
 func SendElevState(state elevators.Elevator_s) bool {
 	stateBytes, _ := state.Marshal()
-	return ring.BroadcastMessage(State, stateBytes)
+	return network.BroadcastMessage(State, stateBytes)
 }
 
 func SendHallCall(ip string, hCall elevators.HallCall_s) bool {
@@ -39,7 +39,7 @@ func SendHallCall(ip string, hCall elevators.HallCall_s) bool {
 	if err != nil {
 		return false
 	}
-	return ring.SendToPeer(Call, ip, hallCallBytes)
+	return network.SendToPeer(Call, ip, hallCallBytes)
 }
 
 func sendUpdate() {
@@ -61,7 +61,7 @@ func sendUpdate() {
 func removedPeerListener() {
 	for {
 		select {
-		case disconectedPeer := <-ring.DisconnectedPeer:
+		case disconectedPeer := <-network.DisconnectedPeer:
 			allHallCalls, _ := store.GetAllHallCalls(disconectedPeer)
 			store.Remove(disconectedPeer)
 			for _, hallCall := range allHallCalls {
@@ -75,8 +75,8 @@ func removedPeerListener() {
 
 // Listens for updates about other elevators and updates store accordingly
 func listenElevatorUpdate() {
-	call_channel := ring.GetReceiver(Call)
-	state_channel := ring.GetReceiver(State)
+	call_channel := network.GetReceiver(Call)
+	state_channel := network.GetReceiver(State)
 
 	for {
 		select {

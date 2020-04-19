@@ -1,4 +1,4 @@
-package ring
+package network
 
 import (
 	"encoding/json"
@@ -7,9 +7,9 @@ import (
 	"strings"
 	"time"
 
-	"../bcast"
-	"../messages"
-	"../peers"
+	"./bcast"
+	"./messages"
+	"./peers"
 )
 
 const gBCASTPORT = 6971

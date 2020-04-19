@@ -8,9 +8,9 @@ import (
 
 	"./event_handler"
 
-	"./network/ring"
+	"./network"
 	"./order_distributor"
-	"./sync/store"
+	"./store"
 )
 
 func main() {
@@ -19,7 +19,7 @@ func main() {
 	elevNumber, _ := strconv.Atoi(elevNumberStr)
 
 	// Establishes the ring network
-	err := ring.Init(inport)
+	err := network.Init(inport)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(2)
