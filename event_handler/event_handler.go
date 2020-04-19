@@ -68,11 +68,11 @@ func buttonHandler() {
 			if store.IsExistingHallCall(hCall) {
 				continue
 			}
-			mostSuitedIP := store.MostSuitedElevator(buttonEvent.Floor, elevDir)
-			fmt.Printf("Most suited ip: %s\n", mostSuitedIP)
+			mostSuitedHostname := store.MostSuitedElevator(buttonEvent.Floor, elevDir)
+			fmt.Printf("Most suited ip: %s\n", mostSuitedHostname)
 
-			store.AddHallCall(mostSuitedIP, hCall)
-			order_distributor.SendHallCall(mostSuitedIP, hCall)
+			store.AddHallCall(mostSuitedHostname, hCall)
+			order_distributor.SendHallCall(mostSuitedHostname, hCall)
 		}
 	}
 }

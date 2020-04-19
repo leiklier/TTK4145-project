@@ -99,9 +99,9 @@ func sendJoinMSG(innPort string) {
 	defer connWrite.Close()
 
 	for i := 0; i < gConnectAttempts; i++ {
-		selfIP := peers.GetRelativeTo(peers.Self, 0)
+		selfHostname := peers.GetRelativeTo(peers.Self, 0)
 		addr, _ := net.ResolveUDPAddr("udp4", fmt.Sprintf("%s:%d", gBroadcastIP, gBCASTPORT))
-		message := gJOINMESSAGE + "-" + selfIP
+		message := gJOINMESSAGE + "-" + selfHostname
 		connWrite.WriteTo([]byte(message), addr)
 		time.Sleep(gTIMEOUT * time.Second) // wait for response
 		if !peers.IsAlone() {
@@ -118,9 +118,9 @@ func ringWatcher() {
 
 	for {
 		select {
-		case disconnectedIP := <-messages.DisconnectedFromServerChannel: // Doesn't get triggered on connect
+		case disconnectedHostname := <-messages.DisconnectedFromServerChannel: // Doesn't get triggered on connect
 
-			peers.Remove(disconnectedIP)
+			peers.Remove(disconnectedHostname)
 			if peers.IsAlone() {
 				break
 			}
@@ -131,7 +131,7 @@ func ringWatcher() {
 			nodeList := peers.GetAll()
 			nodeBytes, _ := json.Marshal(nodeList)
 			messages.SendMessage(NodeChange, nodeBytes)
-			DisconnectedPeer <- disconnectedIP
+			DisconnectedPeer <- disconnectedHostname
 			break
 
 		// Never more then one disconect or add per change
@@ -140,9 +140,9 @@ func ringWatcher() {
 			json.Unmarshal(nodeBytes, &nodeList)
 			if !peers.IsEqualTo(nodeList) {
 				oldNodes := peers.GetAll()
-				disconnectedIP, shouldRemove := difference(oldNodes, nodeList)
+				disconnectedHostname, shouldRemove := difference(oldNodes, nodeList)
 				if shouldRemove {
-					DisconnectedPeer <- disconnectedIP
+					DisconnectedPeer <- disconnectedHostname
 				}
 				peers.Set(nodeList)
 				nextNode := peers.GetRelativeTo(peers.Self, 1)
