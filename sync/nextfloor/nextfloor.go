@@ -29,29 +29,29 @@ func GetNextFloor() int {
 		}
 
 	case elevators.DirectionIdle:
-		// Denne kan egntlig håndere hele suppen hvis vi kun sjekker på idle
-		nf := searchBoth(currFloor, hallCalls, cabCalls)
-		// nfAbove := searchAbove(currFloor, hallCalls, cabCalls)
-		// nfUnderneath := searchUnderneath(currFloor, hallCalls, cabCalls)
+		nfAbove := searchAbove(currFloor, hallCalls, cabCalls)
+		nfUnderneath := searchUnderneath(currFloor, hallCalls, cabCalls)
 
-		if nf != -1 {
-			return nf
+		if nfAbove != -1 || nfUnderneath != -1 {
+			if abs(currFloor-nfUnderneath) < abs(currFloor-nfAbove) {
+				return nfUnderneath
+			} else {
+				return nfAbove
+			}
 		}
 
 	default:
 		fmt.Println("Get the Bible and pray!")
 	}
-	// Only rerun when store has changed:
 	return -1
 }
 
 // Returns nextFloor. If there are no more orders, it returns -1
 func searchAbove(currFloor int, hallCalls []elevators.HallCall_s, cabCalls []bool) int {
-	nextCab := store.NumFloors + 1 // Way too high
-	// Looking for hot single moms upstairs...
+	nextCab := store.NumFloors + 1 // Init with too high
 	for i, cab := range cabCalls {
 		if i <= currFloor {
-			continue // Vi sjekker kun oppover¨
+			continue // Check only above
 		} else if cab {
 			nextCab = i
 			break
@@ -59,12 +59,11 @@ func searchAbove(currFloor int, hallCalls []elevators.HallCall_s, cabCalls []boo
 	}
 	for i, hc := range hallCalls {
 		if i <= currFloor {
-			continue // Vi sjekker kun oppover
+			continue // Check only above
 		} else {
 			if hc.Direction != elevators.DirectionIdle {
 				nextHall := i
 				if nextHall < nextCab {
-					fmt.Println("Nextfloor is hallcall at: ", nextHall)
 					return nextHall
 				}
 				break
@@ -75,18 +74,16 @@ func searchAbove(currFloor int, hallCalls []elevators.HallCall_s, cabCalls []boo
 		// No calls
 		return -1
 	}
-	fmt.Println("Returning cabCall")
 	return nextCab
 
 }
 
 // Returns nextFloor. If there are no more orders, it returns -1
 func searchUnderneath(currFloor int, hallCalls []elevators.HallCall_s, cabCalls []bool) int {
-	nextCab := -1 // Below surface
-	// Looking for hot single moms downstairs ...
+	nextCab := -1 // Init with below surface
 	for i := store.NumFloors - 1; i >= 0; i-- {
 		if i >= currFloor {
-			continue // Sjekker kun nedover
+			continue // Check only downwards
 		} else {
 			if cabCalls[i] {
 				nextCab = i
@@ -96,12 +93,11 @@ func searchUnderneath(currFloor int, hallCalls []elevators.HallCall_s, cabCalls 
 	}
 	for i := store.NumFloors - 1; i >= 0; i-- {
 		if i >= currFloor {
-			continue // Sjekker kun nedover
+			continue // Check only downwards
 		} else {
 			if hallCalls[i].Direction != elevators.DirectionIdle {
 				nextHall := i
 				if nextHall > nextCab {
-					fmt.Println("Nextfloor is hallcall at: ", nextHall)
 					return nextHall
 				}
 				break
@@ -112,38 +108,13 @@ func searchUnderneath(currFloor int, hallCalls []elevators.HallCall_s, cabCalls 
 		// No calls
 		return -1
 	}
-	fmt.Println("Returning cabCall")
 	return nextCab
 }
 
-func searchBoth(currFloor int, hallCalls []elevators.HallCall_s, cabCalls []bool) int {
-	for counter := 1; counter < store.NumFloors; counter++ {
-
-		lowerSearchIndex := currFloor - counter  // Sjekk om er under 0
-		higherSearchIndex := currFloor + counter // Sjekk om er over NumFloors-1
-
-		if !(lowerSearchIndex < 0) {
-			if cabCalls[lowerSearchIndex] {
-				fmt.Println("Returning cabCall")
-				return lowerSearchIndex
-			}
-			if hallCalls[lowerSearchIndex].Direction != elevators.DirectionIdle {
-				fmt.Println("Nextfloor is hallcall at: ", lowerSearchIndex)
-				return lowerSearchIndex
-			}
-		}
-		if !(higherSearchIndex > store.NumFloors-1) {
-			if cabCalls[higherSearchIndex] {
-				fmt.Println("Returning cabCall")
-				return higherSearchIndex
-			}
-			if hallCalls[higherSearchIndex].Direction != elevators.DirectionIdle {
-				fmt.Println("Nextfloor is hallcall at: ", higherSearchIndex)
-				return higherSearchIndex
-			}
-		}
-
+// Go has no built in absolute value function for integers
+func abs(x int) int {
+	if x < 0 {
+		return -x
 	}
-	// No more calls
-	return -1
+	return x
 }
