@@ -8,7 +8,8 @@ import (
 	"../store"
 )
 
-// Forslag til searcboth: bruk både searchunderneath og searchabove og velg nærmeste nf. abs(curr -nf)
+// GetNextFloor returns the nextfloor the elevator should travel to.
+// Returns -1 if there are no more orders to take
 func GetNextFloor() int {
 	cabCalls, _ := store.GetAllCabCalls(peers.GetRelativeTo(peers.Self, 0))
 	hallCalls, _ := store.GetAllHallCalls(peers.GetRelativeTo(peers.Self, 0))
