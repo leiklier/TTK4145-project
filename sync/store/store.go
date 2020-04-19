@@ -60,17 +60,17 @@ func WriteCCBackup(cabCalls []bool, filename string) {
 func ReadCCBackup(filename string) []bool {
 	// Check if the file exists
 	_, err := os.Stat(filename)
-	
+
 	if err != nil {
-		fmt.Println("File does not exist, initializing",filename);
-		InitCCBackupFile(filename)  
+		fmt.Println("File does not exist, initializing", filename)
+		InitCCBackupFile(filename)
 	}
 
 	// File now 100% exists and we can proceed
 	file, err := os.Open(filename)
 	if err != nil {
 		log.Fatal(err)
-		}
+	}
 
 	stream, err := ioutil.ReadFile(filename)
 	if err != nil {
@@ -94,7 +94,7 @@ func ReadCCBackup(filename string) []bool {
 }
 
 // Initializes with no CC
-func InitCCBackupFile (filename string) {
+func InitCCBackupFile(filename string) {
 	file, err := os.Create(filename)
 	if err != nil {
 		fmt.Println("Failed to create backup file!")
@@ -102,7 +102,7 @@ func InitCCBackupFile (filename string) {
 	}
 	file.Close()
 	var cc = []bool{true, false, false, false}
-	WriteCCBackup(cc,filename)
+	WriteCCBackup(cc, filename)
 }
 
 func Init() {
@@ -143,7 +143,6 @@ func IsExistingHallCall(hallCall elevators.HallCall_s) bool {
 		}
 
 	}
-
 	return false
 }
 
@@ -256,18 +255,6 @@ func GetDirectionMoving(elevatorHostname string) (elevators.Direction_e, error) 
 	return elevator.GetDirectionMoving(), nil
 }
 
-func GetPreviousFloor(elevatorHostname string) (int, error) {
-	elevator, err := GetElevator(elevatorHostname)
-	if err != nil {
-		return 0, err
-	}
-
-	gStateMutex.Lock()
-	defer gStateMutex.Unlock()
-
-	return elevator.GetPreviousFloor(), nil
-}
-
 func SetDirectionMoving(elevatorHostname string, newDirection elevators.Direction_e) error {
 	elevator, err := GetElevator(elevatorHostname)
 	if err != nil {
@@ -362,23 +349,4 @@ func MostSuitedElevator(hcFloor int, hcDirection elevators.Direction_e) string {
 	defer gStateMutex.Unlock()
 
 	return costfunction.MostSuitedElevator(gState, NumFloors, hcFloor, hcDirection)
-}
-
-func PrintStateAll() {
-	for {
-		select {
-		case <-time.After(5 * time.Second):
-			all := GetAll()
-			for index, item := range all {
-				fmt.Println("---------------")
-				fmt.Printf("index : %d\n", index)
-				fmt.Printf("%+v\n", item.GetHostname())
-				fmt.Printf("Current floor: %+v\n", item.GetCurrentFloor())
-				fmt.Printf("Cab calls: %+v\n", item.GetAllCabCalls())
-				fmt.Printf("Hall calls: %+v\n", item.GetAllHallCalls())
-				fmt.Printf("Direction: %+v\n", item.GetDirectionMoving())
-			}
-
-		}
-	}
 }

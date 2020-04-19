@@ -20,6 +20,8 @@ const (
 	PingAck
 )
 
+const numberOfRetries = 5
+
 type Message struct {
 	Purpose        string
 	Type           int    // Broadcast or Ping or PingAck
@@ -28,7 +30,7 @@ type Message struct {
 }
 
 // Variables
-var gInnPort string
+var gInPort string
 
 //Public channels
 var DisconnectedFromServerChannel = make(chan string)
@@ -41,13 +43,16 @@ var gConnectedToServerChannel = make(chan string)
 var gSendForwardChannel = make(chan Message, 100)
 var gSendBackwardChannel = make(chan Message, 100)
 
-func Init(innPort string) {
-	gInnPort = innPort
+func Init(inPort string) {
+	gInPort = inPort
 	go client()
 	go server()
 }
 
 func ConnectTo(hostname string) error {
+	if peers.IsAlone() {
+		return nil
+	}
 	gServerHostnameChannel <- hostname
 	select {
 	case <-gConnectedToServerChannel:
@@ -97,6 +102,8 @@ func handleOutboundConnection(server string, shouldDisconnectChannel chan bool) 
 	conn, err := net.Dial("tcp", server)
 	if err != nil {
 		fmt.Printf("TCP client connect error: %s", err)
+		DisconnectedFromServerChannel <- server
+
 		return
 	}
 
@@ -109,8 +116,7 @@ func handleOutboundConnection(server string, shouldDisconnectChannel chan bool) 
 
 	gConnectedToServerChannel <- server
 
-	shouldSendPingTicker := time.NewTicker(800 * time.Millisecond)
-
+	shouldSendPingTicker := time.NewTicker(1 * time.Second)
 	pingAckReceivedChannel := make(chan Message, 100)
 	connErrorChannel := make(chan error)
 
@@ -131,17 +137,8 @@ func handleOutboundConnection(server string, shouldDisconnectChannel chan bool) 
 				Type: Ping,
 			}
 			gSendForwardChannel <- messageToSend
-			select {
-			case <-pingAckReceivedChannel:
-				// We received a PingAck, so everything works fine
-				break
-			case <-time.After(1 * time.Second):
-				// Cannot retrieve PingAck, so the connection is
-				// not working properly
-
-				err = errors.New("ERR_SERVER_DISCONNECTED")
-				return
-			}
+		case <-pingAckReceivedChannel:
+			// We received a PingAck, so everything works fine
 			break
 
 		case <-shouldDisconnectChannel:
@@ -152,13 +149,12 @@ func handleOutboundConnection(server string, shouldDisconnectChannel chan bool) 
 			err = errors.New("ERR_SERVER_DISCONNECTED")
 			return
 		}
-
 	}
 }
 
 func server() {
 	// Boot up TCP server
-	listener, err := net.Listen("tcp", fmt.Sprintf(":%s", gInnPort))
+	listener, err := net.Listen("tcp", fmt.Sprintf(":%s", gInPort))
 	if err != nil {
 		fmt.Printf("TCP server listener error: %s", err) // TODO: Maybe do something with this error
 	}
@@ -178,7 +174,6 @@ func server() {
 		shouldDisconnectChannel <- true
 		shouldDisconnectChannel = make(chan bool, 10)
 		handleIncomingConnection(conn, shouldDisconnectChannel)
-
 	}
 }
 
@@ -248,6 +243,7 @@ func receiveMessages(conn net.Conn, receiveChannel chan Message, errorChannel ch
 }
 
 func sendMessages(conn net.Conn, messageToSendChannel chan Message, errorChannel chan error) {
+	numErrors := 0
 	for {
 		messageToSend := <-messageToSendChannel
 		serializedMessage, _ := json.Marshal(messageToSend)
@@ -255,12 +251,15 @@ func sendMessages(conn net.Conn, messageToSendChannel chan Message, errorChannel
 		_, err := fmt.Fprintf(conn, string(serializedMessage)+"\n\000")
 
 		if err != nil {
+			numErrors = numErrors + 1
 			// We need to retransmit the message, to pass it back to the channel.
 			// However, the connection is not working so disconnect.
-			messageToSendChannel <- messageToSend
-			// errorChannel <- err
-			// TODO: Legg til x antall ganger det her kan skje
-			return
+			if messageToSend.Type == Broadcast {
+				messageToSendChannel <- messageToSend
+			}
+			if numErrors > numberOfRetries {
+				return
+			}
 		}
 	}
 }

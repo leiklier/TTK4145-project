@@ -8,16 +8,14 @@ import (
 	"../store"
 )
 
-// SubscribeToDestinationUpdates :)
-// Kan kjøres både som goroutine eller som funksjonskall
-func SubscribeToDestinationUpdates() int {
-	// for {
+// Forslag til searcboth: bruk både searchunderneath og searchabove og velg nærmeste nf. abs(curr -nf)
+func GetNextFloor() int {
 	cabCalls, _ := store.GetAllCabCalls(peers.GetRelativeTo(peers.Self, 0))
 	hallCalls, _ := store.GetAllHallCalls(peers.GetRelativeTo(peers.Self, 0))
-	currDir, _ := store.GetDirectionMoving(peers.GetRelativeTo(peers.Self, 0))
+	currentDirection, _ := store.GetDirectionMoving(peers.GetRelativeTo(peers.Self, 0))
 	currFloor, _ := store.GetCurrentFloor(peers.GetRelativeTo(peers.Self, 0))
 
-	switch currDir {
+	switch currentDirection {
 	case elevators.DirectionDown:
 		nf := searchUnderneath(currFloor, hallCalls, cabCalls)
 		if nf != -1 {
@@ -33,6 +31,9 @@ func SubscribeToDestinationUpdates() int {
 	case elevators.DirectionIdle:
 		// Denne kan egntlig håndere hele suppen hvis vi kun sjekker på idle
 		nf := searchBoth(currFloor, hallCalls, cabCalls)
+		// nfAbove := searchAbove(currFloor, hallCalls, cabCalls)
+		// nfUnderneath := searchUnderneath(currFloor, hallCalls, cabCalls)
+
 		if nf != -1 {
 			return nf
 		}
@@ -43,8 +44,6 @@ func SubscribeToDestinationUpdates() int {
 	// Only rerun when store has changed:
 	return -1
 }
-
-// }
 
 // Returns nextFloor. If there are no more orders, it returns -1
 func searchAbove(currFloor int, hallCalls []elevators.HallCall_s, cabCalls []bool) int {
@@ -122,12 +121,6 @@ func searchBoth(currFloor int, hallCalls []elevators.HallCall_s, cabCalls []bool
 
 		lowerSearchIndex := currFloor - counter  // Sjekk om er under 0
 		higherSearchIndex := currFloor + counter // Sjekk om er over NumFloors-1
-		/*
-			fmt.Println()
-			fmt.Println("Iteration nr", counter)
-			fmt.Println("lowerIndex:", lowerSearchIndex)
-			fmt.Println("higheIndex", higherSearchIndex)
-		*/
 
 		if !(lowerSearchIndex < 0) {
 			if cabCalls[lowerSearchIndex] {

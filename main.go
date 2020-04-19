@@ -3,9 +3,7 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"log"
 	"os"
-	"os/exec"
 	"strconv"
 
 	"./event_handler"
@@ -20,30 +18,21 @@ func main() {
 	elevNumberStr := os.Args[2]
 	elevNumber, _ := strconv.Atoi(elevNumberStr)
 
+	// Establishes the ring network
 	err := ring.Init(inport)
-	store.Init()
-	// if elevNumber == 0 {
-	// 	 spawnElevators()
-
-	// }
 	if err != nil {
 		fmt.Println(err)
+		os.Exit(2)
 	}
-	order_distributor.Init()
-	// go store.PrintStateAll()
 
+	// Holds information about all elevators
+	store.Init()
+
+	// Passes orders between elevators
+	order_distributor.Init()
+
+	// Handles button events, motor direction and lights
 	event_handler.Init(elevNumber)
 
 	bufio.NewReader(os.Stdin).ReadBytes('\n')
-
-}
-
-func spawnElevators() {
-
-	err := (exec.Command("gnome-terminal", "-e", "./spawnElevators.sh")).Run()
-	if err != nil {
-		fmt.Println("Something went wrong!")
-		log.Fatal(err)
-	}
-
 }

@@ -21,7 +21,7 @@ const NodeChange = "NodeChange"
 
 var DisconnectedPeer = make(chan string)
 
-// Initializes the network if it's present. Establishes a new network if not
+// Initializes the network if it's present. Establishes a new network
 func Init(innPort string) error {
 	peersError := peers.Init(innPort)
 	fmt.Println("Started peers server")
@@ -65,9 +65,8 @@ func SendToPeer(purpose string, ip string, data []byte) bool {
 // on the network using UDP. The new machine is added to the list of
 // known machines. That list is propagted trpough the ring to update the ring
 func handleJoin(innPort string) {
-	readChn := make(chan string)
+	readChn := make(chan string, 10)
 	go nonBlockingRead(readChn)
-	// sendJoinMSG(innPort)
 	for {
 		select {
 		case tail := <-readChn:
@@ -78,7 +77,6 @@ func handleJoin(innPort string) {
 				break
 			}
 			if peers.IsNextTail() {
-				fmt.Printf("Connecting to: %s\n", tail)
 				messages.ConnectTo(tail)
 			}
 			nodes := peers.GetAll()
@@ -89,48 +87,6 @@ func handleJoin(innPort string) {
 		case <-time.After(5 * time.Second): // Listens for new elevators on the network
 			if peers.IsAlone() {
 				sendJoinMSG(innPort)
-			}
-			break
-		}
-	}
-}
-
-// Handles ring growth and shrinking
-// Detects if the node infront of you disconnects, alerts rest of ring
-// That node becomes the master
-func ringWatcher() {
-	var nodesList []string
-	var disconnectedIP string
-
-	nodeChangeReciver := messages.GetReceiver(NodeChange)
-
-	for {
-		select {
-		case disconnectedIP = <-messages.DisconnectedFromServerChannel:
-			fmt.Printf("Disconnect : %s\n", disconnectedIP)
-
-			peers.Remove(disconnectedIP)
-			DisconnectedPeer <- disconnectedIP
-			if peers.IsAlone() {
-				break
-			}
-			peers.BecomeHead()
-			nextNode := peers.GetNextPeer()
-			fmt.Printf("Connecting to: %s\n", nextNode)
-			messages.ConnectTo(nextNode)
-
-			nodeList := peers.GetAll()
-			nodeBytes, _ := json.Marshal(nodeList)
-			messages.SendMessage(NodeChange, nodeBytes)
-			break
-		case nodeBytes := <-nodeChangeReciver:
-			json.Unmarshal(nodeBytes, &nodesList)
-			if !peers.IsEqualTo(nodesList) {
-				peers.Set(nodesList)
-				nextNode := peers.GetNextPeer()
-				fmt.Printf("Connecting to: %s\n", nextNode)
-				messages.ConnectTo(nextNode)
-				messages.SendMessage(NodeChange, nodeBytes)
 			}
 			break
 		}
@@ -154,9 +110,49 @@ func sendJoinMSG(innPort string) {
 	}
 }
 
-////////////////////////////////////////////////////
-// Helper functions
-////////////////////////////////////////////////////
+// Handles ring growth and shrinking
+// Detects if the node infront of you disconnects, alerts rest of ring
+// That node becomes the master
+func ringWatcher() {
+	nodeChangeReciver := messages.GetReceiver(NodeChange)
+
+	for {
+		select {
+		case disconnectedIP := <-messages.DisconnectedFromServerChannel: // Doesn't get triggered on connect
+
+			peers.Remove(disconnectedIP)
+			if peers.IsAlone() {
+				break
+			}
+			peers.BecomeHead()
+			nextNode := peers.GetRelativeTo(peers.Self, 1)
+			messages.ConnectTo(nextNode)
+
+			nodeList := peers.GetAll()
+			nodeBytes, _ := json.Marshal(nodeList)
+			messages.SendMessage(NodeChange, nodeBytes)
+			DisconnectedPeer <- disconnectedIP
+			break
+
+		// Never more then one disconect or add per change
+		case nodeBytes := <-nodeChangeReciver:
+			nodeList := []string{""}
+			json.Unmarshal(nodeBytes, &nodeList)
+			if !peers.IsEqualTo(nodeList) {
+				oldNodes := peers.GetAll()
+				disconnectedIP, shouldRemove := difference(oldNodes, nodeList)
+				if shouldRemove {
+					DisconnectedPeer <- disconnectedIP
+				}
+				peers.Set(nodeList)
+				nextNode := peers.GetRelativeTo(peers.Self, 1)
+				messages.ConnectTo(nextNode)
+				messages.SendMessage(NodeChange, nodeBytes)
+			}
+			break
+		}
+	}
+}
 
 // Makes it possible to have timeout on udp read
 func nonBlockingRead(readChn chan<- string) { // This is iffy, was a quick fix
@@ -175,4 +171,25 @@ func nonBlockingRead(readChn chan<- string) { // This is iffy, was a quick fix
 			readChn <- receivedHost
 		}
 	}
+}
+
+// Slice1 is longer than slice2
+func difference(slice1 []string, slice2 []string) (string, bool) {
+	if len(slice1) <= len(slice2) {
+		return "", false
+	}
+	for _, s1 := range slice1 {
+		found := false
+		for _, s2 := range slice2 {
+			if s1 == s2 {
+				found = true
+				break
+			}
+		}
+		// String not found.
+		if !found {
+			return s1, true
+		}
+	}
+	return "", false
 }

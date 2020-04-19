@@ -68,12 +68,6 @@ func SetDoorOpenLamp(value bool) {
 	_conn.Write([]byte{4, toByte(value), 0, 0})
 }
 
-func SetStopLamp(value bool) {
-	_mtx.Lock()
-	defer _mtx.Unlock()
-	_conn.Write([]byte{5, toByte(value), 0, 0})
-}
-
 func PollButtons(receiver chan<- ButtonEvent) {
 	prev := make([][3]bool, _numFloors)
 	for {
@@ -102,30 +96,6 @@ func PollFloorSensor(receiver chan<- int) {
 	}
 }
 
-func PollStopButton(receiver chan<- bool) {
-	prev := false
-	for {
-		time.Sleep(_pollRate)
-		v := getStop()
-		if v != prev {
-			receiver <- v
-		}
-		prev = v
-	}
-}
-
-func PollObstructionSwitch(receiver chan<- bool) {
-	prev := false
-	for {
-		time.Sleep(_pollRate)
-		v := getObstruction()
-		if v != prev {
-			receiver <- v
-		}
-		prev = v
-	}
-}
-
 func getButton(button ButtonType, floor int) bool {
 	_mtx.Lock()
 	defer _mtx.Unlock()
@@ -146,24 +116,6 @@ func getFloor() int {
 	} else {
 		return -1
 	}
-}
-
-func getStop() bool {
-	_mtx.Lock()
-	defer _mtx.Unlock()
-	_conn.Write([]byte{8, 0, 0, 0})
-	var buf [4]byte
-	_conn.Read(buf[:])
-	return toBool(buf[1])
-}
-
-func getObstruction() bool {
-	_mtx.Lock()
-	defer _mtx.Unlock()
-	_conn.Write([]byte{9, 0, 0, 0})
-	var buf [4]byte
-	_conn.Read(buf[:])
-	return toBool(buf[1])
 }
 
 func toByte(a bool) byte {

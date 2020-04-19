@@ -2,7 +2,6 @@ package order_distributor
 
 import (
 	"encoding/json"
-	"fmt"
 	"time"
 
 	"../network/peers"
@@ -12,20 +11,22 @@ import (
 	"../sync/store"
 )
 
+//Message purposes
 const (
 	State = "State"
 	Call  = "Call"
 )
+const updateInterval = 5
 
-var SendStateUpdate = make(chan bool)
+var ShouldSendStateUpdate = make(chan bool, 10)
 var selfIP string
 
 func Init() {
 	selfIP = peers.GetRelativeTo(peers.Self, 0)
 
-	go SendUpdate()
-	go ListenElevatorUpdate()
-	go RemovedPeerListener()
+	go sendUpdate()
+	go listenElevatorUpdate()
+	go removedPeerListener()
 }
 
 func SendElevState(state elevators.Elevator_s) bool {
@@ -33,24 +34,22 @@ func SendElevState(state elevators.Elevator_s) bool {
 	return ring.BroadcastMessage(State, stateBytes)
 }
 
-func SendHallCall(ip string, hCall elevators.HallCall_s) bool { // Not tested
-	hCallBytes, err := json.Marshal(hCall)
+func SendHallCall(ip string, hCall elevators.HallCall_s) bool {
+	hallCallBytes, err := json.Marshal(hCall)
 	if err != nil {
 		return false
 	}
-	return ring.SendToPeer(Call, ip, hCallBytes)
+	return ring.SendToPeer(Call, ip, hallCallBytes)
 }
 
-func SendUpdate() {
-
+func sendUpdate() {
 	for {
 		select {
-		case <-SendStateUpdate:
+		case <-ShouldSendStateUpdate:
 			state, _ := store.GetElevator(selfIP)
 			SendElevState(state)
 			break
-
-		case <-time.After(10 * time.Second):
+		case <-time.After(updateInterval * time.Second):
 			state, _ := store.GetElevator(selfIP)
 			SendElevState(state)
 			break
@@ -58,22 +57,24 @@ func SendUpdate() {
 	}
 }
 
-func RemovedPeerListener() {
+// Distributes the HallCalls assigned to a elevator that has disconnected
+func removedPeerListener() {
 	for {
 		select {
 		case disconectedPeer := <-ring.DisconnectedPeer:
-			hall_calls, _ := store.GetAllHallCalls(disconectedPeer)
+			allHallCalls, _ := store.GetAllHallCalls(disconectedPeer)
 			store.Remove(disconectedPeer)
-			for _, hc := range hall_calls {
-				mostSuitedIP := store.MostSuitedElevator(hc.Floor, hc.Direction)
-				store.AddHallCall(selfIP, hc)
-				SendHallCall(mostSuitedIP, hc)
+			for _, hallCall := range allHallCalls {
+				mostSuitedIP := store.MostSuitedElevator(hallCall.Floor, hallCall.Direction)
+				store.AddHallCall(selfIP, hallCall)
+				SendHallCall(mostSuitedIP, hallCall)
 			}
 		}
 	}
 }
 
-func ListenElevatorUpdate() {
+// Listens for updates about other elevators and updates store accordingly
+func listenElevatorUpdate() {
 	call_channel := ring.GetReceiver(Call)
 	state_channel := ring.GetReceiver(State)
 
@@ -88,11 +89,8 @@ func ListenElevatorUpdate() {
 			callMap := make(map[string][]byte)
 			hCall := elevators.HallCall_s{}
 			json.Unmarshal(call, &callMap)
-			// hCallBytes, found := callMap[selfIP]
 			for ip, hCallBytes := range callMap {
 				json.Unmarshal(hCallBytes, &hCall)
-				fmt.Println("Received most suited: ", ip)
-				fmt.Println("Hallcall received: ", hCall)
 				store.AddHallCall(ip, hCall)
 			}
 

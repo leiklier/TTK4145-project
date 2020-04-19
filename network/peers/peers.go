@@ -215,7 +215,10 @@ func IsEqualTo(peersToCompare []string) bool {
 }
 
 func IsAlone() bool {
-	return GetRelativeTo(Head, 0) == GetRelativeTo(Tail, 0)
+	if len(GetAll()) == 1 {
+		return true
+	}
+	return false
 }
 
 func IsHead() bool {
@@ -224,10 +227,6 @@ func IsHead() bool {
 
 func IsNextTail() bool {
 	return GetRelativeTo(Self, 1) == GetRelativeTo(Tail, 0)
-}
-
-func GetNextPeer() string {
-	return GetRelativeTo(Self, 1)
 }
 
 func getLocalIP() (string, error) {
@@ -246,23 +245,4 @@ func stringInSlice(a string, list []string) bool {
 		}
 	}
 	return false
-}
-
-func difference(slice1 []string, slice2 []string) (string, bool) {
-	for _, s1 := range slice1 {
-		found := false
-		for _, s2 := range slice2 {
-			if s1 == s2 {
-				found = true
-				break
-			}
-		}
-		// String not found.
-		if !found {
-			return s1, true
-		}
-	}
-	// Swap the slices, only if it was the first loop
-	slice1, slice2 = slice2, slice1
-	return "", false
 }
