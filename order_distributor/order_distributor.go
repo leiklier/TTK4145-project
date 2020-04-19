@@ -19,10 +19,10 @@ const (
 const updateInterval = 5
 
 var ShouldSendStateUpdate = make(chan bool, 10)
-var selfIP string
+var selfHostname string
 
 func Init() {
-	selfIP = peers.GetRelativeTo(peers.Self, 0)
+	selfHostname = peers.GetRelativeTo(peers.Self, 0)
 
 	go sendUpdate()
 	go listenElevatorUpdate()
@@ -46,11 +46,11 @@ func sendUpdate() {
 	for {
 		select {
 		case <-ShouldSendStateUpdate:
-			state, _ := store.GetElevator(selfIP)
+			state, _ := store.GetElevator(selfHostname)
 			SendElevState(state)
 			break
 		case <-time.After(updateInterval * time.Second):
-			state, _ := store.GetElevator(selfIP)
+			state, _ := store.GetElevator(selfHostname)
 			SendElevState(state)
 			break
 		}
@@ -65,9 +65,9 @@ func removedPeerListener() {
 			allHallCalls, _ := store.GetAllHallCalls(disconectedPeer)
 			store.Remove(disconectedPeer)
 			for _, hallCall := range allHallCalls {
-				mostSuitedIP := store.MostSuitedElevator(hallCall.Floor, hallCall.Direction)
-				store.AddHallCall(selfIP, hallCall)
-				SendHallCall(mostSuitedIP, hallCall)
+				mostSuitedHostname := store.MostSuitedElevator(hallCall.Floor, hallCall.Direction)
+				store.AddHallCall(selfHostname, hallCall)
+				SendHallCall(mostSuitedHostname, hallCall)
 			}
 		}
 	}

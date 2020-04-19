@@ -29,16 +29,16 @@ type ControlSignal struct {
 var controlChannel = make(chan ControlSignal, 100)
 
 // Local variables
-var localIP string
+var localHostname string
 var err error // Fucking go
 
-// Set takes an array of IP addresses, DELETES all existing
-// peers and adds the new IP addresses instead, in the same
+// Set takes an array of hostnames, DELETES all existing
+// peers and adds the new Hostname addresses instead, in the same
 // order as they appear in the IPs array.
-func Set(IPs []string) {
+func Set(hostnames []string) {
 	controlSignal := ControlSignal{
 		Command: Replace,
-		Payload: IPs,
+		Payload: hostnames,
 	}
 	controlChannel <- controlSignal
 }
@@ -50,11 +50,11 @@ func BecomeHead() {
 	controlChannel <- controlSignal
 }
 
-// Remove deletes the peer with a certain IP
-func Remove(IP string) {
+// Remove deletes the peer with a certain hostname
+func Remove(hostname string) {
 	controlSignal := ControlSignal{
 		Command: Delete,
-		Payload: []string{IP},
+		Payload: []string{hostname},
 	}
 	controlChannel <- controlSignal
 }
@@ -62,13 +62,13 @@ func Remove(IP string) {
 // AddTail takes an IP address in the form of a string,
 // and adds it at the end of the list of peers, thus
 // creating a new tail. It returns nothing
-func AddTail(IP string) bool {
-	if stringInSlice(IP, GetAll()) {
+func AddTail(hostname string) bool {
+	if stringInSlice(hostname, GetAll()) {
 		return false
 	}
 	controlSignal := ControlSignal{
 		Command: Append,
-		Payload: []string{IP},
+		Payload: []string{hostname},
 	}
 
 	controlChannel <- controlSignal
@@ -102,7 +102,7 @@ func GetRelativeTo(role int, offset int) string {
 		indexOfRole = len(peers) - 1
 	} else if role == Self {
 		for index, peer := range peers {
-			if peer == localIP {
+			if peer == localHostname {
 				indexOfRole = index
 				break
 			}
@@ -119,19 +119,19 @@ func GetRelativeTo(role int, offset int) string {
 }
 
 func Init(connectPort string) error {
-	localIP, err = getLocalIP()
+	localIP, err := getLocalIP()
 	if err != nil {
 		return err
 	}
-	localIP = localIP + ":" + connectPort
-	fmt.Println(localIP)
+	localHostname = localIP + ":" + connectPort
+	fmt.Println(localHostname)
 	go peersServer()
 	return nil
 }
 
 func peersServer() {
 	peers := make([]string, 1)
-	peers[0] = localIP
+	peers[0] = localHostname
 	for {
 		controlSignal := <-controlChannel
 		switch controlSignal.Command {
@@ -147,13 +147,13 @@ func peersServer() {
 			peers = controlSignal.Payload
 			selfInPeers := false
 			for _, peer := range peers {
-				if peer == localIP {
+				if peer == localHostname {
 					selfInPeers = true
 				}
 			}
 
 			if selfInPeers == false {
-				peers = append(peers, localIP)
+				peers = append(peers, localHostname)
 			}
 			break
 
@@ -163,7 +163,7 @@ func peersServer() {
 			var newPeers []string
 
 			for rotation, val = range peers {
-				if val == localIP {
+				if val == localHostname {
 					break
 				}
 			}
@@ -177,7 +177,7 @@ func peersServer() {
 
 		case Delete:
 			peerToRemove := controlSignal.Payload[0]
-			if peerToRemove != localIP { // Don't delete yourself
+			if peerToRemove != localHostname { // Don't delete yourself
 
 				for i, peer := range peers {
 					if peer == peerToRemove {
